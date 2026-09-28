@@ -133,7 +133,7 @@ body{-webkit-touch-callout:none}
           <li>WASD або стрілки: рух. Shift: біг ×1.5. Запасу вистачає на 8 клітинок, його можна витрачати частинами. Коли запас закінчиться, 10 с втоми.</li>
           <li>На телефоні: хрестовина зліва (можна вести пальцем по діагоналі), кнопка «БІГ» праворуч.</li>
           <li>На зебрі машини зупиняються. Поза нею можуть збити.</li>
-          <li>Бус ТЦК (він один) помічає за 3 клітинки й відстає після 5. Працівники помічають за 2 й відстають після 4.</li>
+          <li>Буси ТЦК (їх двоє) помічають за 3 клітинки й відстає після 5. Працівники помічають за 2 й відстають після 4.</li>
           <li>Спійманого тримають, поки не під'їде бус, а потім везуть на базу. Якщо спіймають усіх, це поразка.</li>
           <li>На карті лежить листочок «БРОНЬ». З ним тебе одразу відпустять, але бронь пропаде й з'явиться деінде.</li>
         </ul>
@@ -411,7 +411,7 @@ function newSim(match) {
   }
   cars.forEach((c, i) => c.i = i);
   const vanCands = cars.filter(c => !(c.ax === 'h' && c.y < 6 * T));
-  for (let k = 0; k < 1 && vanCands.length; k++) { const j = Math.floor(R() * vanCands.length); vanCands.splice(j, 1)[0].tcc = true; }
+  for (let k = 0; k < 2 && vanCands.length; k++) { const j = Math.floor(R() * vanCands.length); vanCands.splice(j, 1)[0].tcc = true; }
   // peds
   const walkTiles = [];
   for (let y = 3; y < H; y++) for (let x = 0; x < W; x++) if ('SP'.includes(tileAt(x, y)) && !(y === 3 && x % 7 < 5)) walkTiles.push([x, y]);
@@ -615,12 +615,12 @@ function carsTick(dt, now) {
 }
 function pedsTick(dt, now) {
   const sim = S.sim;
-  const van = sim.cars.find(c => c.tcc);
   for (const e of sim.peds) {
     if (e.st === 'escort') {
       const p = sim.players[e.pl];
       if (!p || p.st !== 2 || p.cst !== 0) { e.st = 'hide'; e.until = now + HIDE_MS; e.tx = null; continue; }
-      if (van && van.st === 'wait' && van.fetchFor === e.pl) {
+      const van = sim.cars.find(c => c.tcc && c.st === 'wait' && c.fetchFor === e.pl);
+      if (van) {
         escortMove(p, e, van, dt);
         if (dist(p, van) < 45) { p.cst = 1; startDeliver(van, p, now); e.st = 'hide'; e.until = now + HIDE_MS; e.tx = null; }
       } else { e.x = p.x - 22; e.y = p.y - 4; }
@@ -995,14 +995,73 @@ function wsRoom() {
     setTimeout(() => finish(null), 6000);
   });
 }
+const NET_MODE = 'auto';
+const P2P_NET_URL = 'https://iclimber.github.io/p2p-net/v1/net.js';
+const P2P_SIGNAL_URL = 'wss://144-172-110-72.sslip.io/ws';
+function p2pRoomId() {
+  let r = location.hash.slice(1).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+  if (!r) { r = Math.random().toString(36).slice(2, 10); history.replaceState(null, '', '#' + r); }
+  return r;
+}
+// Адаптер: мережевий шар p2p-net (WebRTC, сервер сигналізації друга) під той самий інтерфейс кімнати,
+// що й у claude.ai: peers() / presence(patch) / onPeers(cb). Кожен розсилає свій presence як JSON.
+async function p2pRoom(createNetImpl) {
+  let createNet = createNetImpl;
+  if (!createNet) { try { createNet = (await import(P2P_NET_URL)).createNet; } catch (e) { return null; } }
+  return new Promise(res => {
+    let done = false; const finish = v => { if (!done) { done = true; res(v); } };
+    const local = {}, pres = new Map(), subs = new Set();
+    let snap = Object.freeze([]), dirty = false, lastSent = -1e9, net = null;
+    const rebuild = () => {
+      if (!net) return;
+      const out = [{ peer: net.id, presence: Object.freeze(Object.assign({}, local)), sameTab: true, isMe: true, kind: 'viewer', guest: false, by: null, updatedAt: Date.now() }];
+      for (const p of net.peers()) { const pr = pres.get(p.id); if (pr) out.push({ peer: p.id, presence: pr.presence, sameTab: false, isMe: false, kind: 'viewer', guest: false, by: null, updatedAt: pr.u }); }
+      snap = Object.freeze(out.map(o => Object.freeze(o)));
+      subs.forEach(f => { try { f({ peers: snap }); } catch (e) {} });
+    };
+    const sendNow = to => { const j = JSON.stringify(local); if (j.length > 60000) return; net.send('pr', { j }, to); if (!to) { lastSent = performance.now(); dirty = false; } };
+    const api = {
+      peers: () => snap,
+      onPeers: f => { subs.add(f); setTimeout(() => f({ peers: snap }), 0); return () => subs.delete(f); },
+      presence: patch => { for (const k in patch) { if (patch[k] === null) delete local[k]; else local[k] = patch[k]; } dirty = true; rebuild(); return Promise.resolve(); }
+    };
+    net = createNet({
+      url: P2P_SIGNAL_URL, game: 'coffee-escape', room: p2pRoomId(),
+      messages: { pr: { broadcast: true, unreliable: true, schema: { j: 'str' } } },
+      hasGame: () => !!(S.isHost && S.match && S.match.ph === 'play'),
+      onMessage: (kind, d, from) => {
+        if (kind !== 'pr') return;
+        let o; try { o = JSON.parse(d.j); } catch (e) { return; }
+        if (!o || typeof o !== 'object' || Array.isArray(o)) return;
+        pres.set(from, { presence: Object.freeze(o), u: Date.now() }); rebuild();
+      },
+      onPeerOpen: id => sendNow(id),
+      onPeerGone: id => { pres.delete(id); rebuild(); },
+      onWelcome: () => finish(api),
+      onVisibility: () => {},
+      onWarn: code => { const m = { full: 'Кімната заповнена', outdated: 'Версія гри застаріла, онови сторінку', version: 'У когось інша версія гри', link: 'Проблеми зі з\'єднанням' }[code]; if (m) toast(m); },
+      onChange: () => rebuild()
+    });
+    setInterval(() => {
+      const now = performance.now();
+      if (net.linkCount() && ((dirty && now - lastSent > 45) || now - lastSent > 1000)) sendNow();
+      rebuild();
+    }, 50);
+    net.start(); rebuild();
+    setTimeout(() => finish(api), 8000);
+  });
+}
+if (NET_MODE === 'p2p') addEventListener('hashchange', () => location.reload());
 (async function initRoom() {
   const cl = window.claude;
   let room = null;
-  if (cl && typeof cl.use === 'function') { try { room = await cl.use('room'); } catch (e) { room = null; } }
+  if (NET_MODE === 'p2p') { room = await p2pRoom(); if (room) S.ws = true; }
+  else if (cl && typeof cl.use === 'function') { try { room = await cl.use('room'); } catch (e) { room = null; } }
   else { room = await wsRoom(); if (room) S.ws = true; }
   if (!room) { S.net = 'offline'; renderLobby(); return; }
   S.room = room; S.net = 'online';
-  room.onPeers(() => { scanRoom(); if (S.mode === 'lobby') renderLobby(); }, () => { toast('Зв\'язок з кімнатою втрачено'); });
+  let lobbyT = 0;
+  room.onPeers(() => { scanRoom(); const n = performance.now(); if (S.mode === 'lobby' && n - lobbyT > 400) { lobbyT = n; renderLobby(); } }, () => { toast('Зв\'язок з кімнатою втрачено'); });
   if (S.ws) $('copyBtn').hidden = false;
   pushLobbyPresence(); renderLobby();
 })();
