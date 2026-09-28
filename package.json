@@ -1,0 +1,9 @@
+{
+  "name": "coffee-escape",
+  "version": "0.2.0",
+  "description": "Втеча на каву — мережева міні-гра",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.18.0" }
+}
