@@ -1,0 +1,1302 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Втеча на каву</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap">
+<style>
+:root{
+  --bg:#161A28; --panel:#22273A; --panel2:#2B3148; --ink:#E9E4D4; --muted:#A3A9C0; --accent:#F4A07A; --ok:#6EE7A0; --line:#3A4058;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#161A28; --panel:#22273A; --ink:#E9E4D4; } }
+:root[data-theme="dark"]{ --bg:#161A28; --panel:#22273A; --ink:#E9E4D4; }
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none !important}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,"Segoe UI",system-ui,-apple-system,sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+#app{position:relative;width:100%;height:100%;overflow:hidden}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;background:#161A28}
+.hud-top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:10px;padding:10px 14px;pointer-events:none;flex-wrap:wrap}
+.title{font-weight:800;font-size:18px;flex-grow:1;text-shadow:0 2px 6px rgba(0,0,0,.5)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:flex;align-items:center;gap:6px;padding:6px 11px;background:rgba(34,39,58,.88);border-radius:999px;font-size:13px;font-weight:700;border:1px solid var(--line)}
+.chip .dot{width:11px;height:11px;border-radius:50%}
+.chip.me{border-color:var(--ink)}
+.timer{font-weight:800;font-size:16px;padding:6px 12px;background:var(--ink);color:#161A28;border-radius:10px}
+.sprint{position:absolute;left:14px;bottom:14px;display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(34,39,58,.9);border-radius:12px;border:1px solid var(--line);pointer-events:none}
+.key{font-size:12px;font-weight:800;padding:3px 7px;border:2px solid #7CC4F0;border-radius:6px;color:#7CC4F0}
+.segs{display:flex;gap:3px}
+.seg{width:9px;height:18px;border-radius:2px;background:#3E4359}
+.seg.on{background:#7CC4F0}
+.sprint .lbl{font-size:13px;font-weight:700;min-width:84px}
+#mini{position:absolute;right:14px;bottom:14px;width:170px;height:170px;border-radius:10px;border:1px solid var(--line);background:#161A28;pointer-events:none}
+.arrow-note{position:absolute;left:50%;top:60px;transform:translateX(-50%);padding:8px 14px;background:rgba(34,39,58,.92);border:1px solid var(--line);border-radius:999px;font-weight:700;font-size:14px;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
+.arrow-note.show{opacity:1}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(14,17,28,.72);padding:16px;overflow:auto}
+.overlay[hidden]{display:none}
+.card{width:min(520px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.45);-webkit-user-select:text;user-select:text}
+.card h1{margin:0;font-size:28px;font-weight:800}
+.card h2{margin:0;font-size:24px;font-weight:800}
+.sub{margin:0;color:var(--muted);font-size:15px;line-height:1.45}
+label.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700;color:var(--muted)}
+input[type=text]{font:inherit;font-size:16px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
+.row{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
+.row input{width:20px;height:20px;accent-color:var(--accent)}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;font-weight:800;font-size:15px;min-height:44px;padding:10px 18px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--ink)}
+button.primary{background:var(--accent);color:#1D2132;border-color:var(--accent)}
+button.on{background:#2E5D46;border-color:var(--ok);color:#DFFBEA}
+button:disabled{opacity:.5;cursor:default}
+.peers{display:flex;flex-direction:column;gap:6px}
+.peer{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel2);border-radius:10px;font-size:14px;font-weight:700}
+.peer .st{margin-left:auto;font-size:12px;color:var(--muted)}
+.peer .st.ready{color:var(--ok)}
+.net{font-size:13px;color:var(--muted)}
+details{font-size:14px;color:var(--muted);line-height:1.5}
+summary{cursor:pointer;font-weight:700;color:var(--ink)}
+details ul{margin:8px 0 0;padding-left:18px}
+.dpad{position:absolute;left:calc(18px + env(safe-area-inset-left,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:186px;height:186px;display:none;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:4px;touch-action:none;border-radius:50%;background:rgba(22,26,40,.35)}
+.dpad .dp{display:flex;align-items:center;justify-content:center;min-height:0;padding:0;border-radius:16px;background:rgba(34,39,58,.85);border:2px solid rgba(233,228,212,.35);color:var(--ink);pointer-events:none}
+.dpad .dp svg{width:26px;height:26px}
+.dpad .dp.on{background:#7CC4F0;border-color:#DDF0FC;color:#1D2132}
+.dpad .up{grid-column:2;grid-row:1}.dpad .left{grid-column:1;grid-row:2}.dpad .right{grid-column:3;grid-row:2}.dpad .down{grid-column:2;grid-row:3}
+.dpad .mid{grid-column:2;grid-row:2;border-radius:50%;background:rgba(233,228,212,.08);pointer-events:none}
+#sprintBtn{position:absolute;right:calc(22px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:104px;height:104px;border-radius:50%;display:none;font-size:18px;background:rgba(124,196,240,.22);border:3px solid #7CC4F0;color:#DDF0FC;touch-action:none}
+#sprintBtn.on{background:#7CC4F0;color:#1D2132}
+#sprintBtn.tired{border-color:#6B7090;color:#9AA0B8;background:rgba(62,67,89,.5)}
+body.touch.playing .dpad{display:grid}
+body.touch.playing #sprintBtn{display:block}
+body.touch .sprint{left:auto;right:calc(10px + env(safe-area-inset-right,0px));bottom:auto;top:calc(52px + env(safe-area-inset-top,0px));padding:6px 10px;gap:6px}
+body.touch .sprint .key{display:none}
+body.touch .sprint .lbl{font-size:12px;min-width:0}
+body.touch .seg{width:7px;height:14px}
+body.touch #mini{top:calc(92px + env(safe-area-inset-top,0px));bottom:auto;right:calc(10px + env(safe-area-inset-right,0px));width:104px;height:104px}
+body.touch .toast{bottom:calc(240px + env(safe-area-inset-bottom,0px))}
+body.touch .hud-top{padding:8px 10px;gap:6px}
+body.touch .title{display:none}
+body.touch .chip{font-size:11px;padding:4px 8px}
+body.touch .timer{font-size:13px;padding:4px 8px}
+body{-webkit-touch-callout:none}
+@media (max-width:640px){ .title{font-size:15px} .chip{font-size:11px;padding:4px 8px} }
+.toast{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);padding:10px 16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;font-weight:700;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game" aria-label="Ігрова карта"></canvas>
+  <div class="hud-top" id="hud" hidden>
+    <div class="title">Втеча на каву</div>
+    <div class="chips" id="chips"></div>
+    <div class="timer" id="timer">00:00</div>
+  </div>
+  <div class="sprint" id="sprintHud" hidden>
+    <span class="key">Shift</span>
+    <div class="segs" id="segs"></div>
+    <span class="lbl" id="sprintLbl">Біг 8/8</span>
+  </div>
+  <canvas id="mini" width="340" height="340" hidden></canvas>
+  <div class="arrow-note" id="note"></div>
+  <div class="dpad" id="dpad" role="group" aria-label="Кнопки руху">
+    <button type="button" class="dp up" data-d="up" aria-label="Вгору" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(0deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+    <button type="button" class="dp left" data-d="left" aria-label="Вліво" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(-90deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+    <span class="mid"></span>
+    <button type="button" class="dp right" data-d="right" aria-label="Вправо" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(90deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+    <button type="button" class="dp down" data-d="down" aria-label="Вниз" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(180deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+  </div>
+  <button id="sprintBtn" type="button" aria-label="Біг" tabindex="-1">БІГ</button>
+  <div class="toast" id="toast"></div>
+
+  <div class="overlay" id="lobby">
+    <div class="card">
+      <h1>Втеча на каву</h1>
+      <p class="sub">Дійди з дому до відкритої кав'ярні. Машини збивають на 3 секунди, а серед машин і перехожих ховаються буси й працівники ТЦК.</p>
+      <label class="field" for="nick">Твій нік
+        <input type="text" id="nick" maxlength="16" autocomplete="off">
+      </label>
+      <div class="net" id="net">Підключення до кімнати…</div>
+      <div class="peers" id="peers"></div>
+      <label class="row" for="bots"><input type="checkbox" id="bots" checked> Боти на вільні місця</label>
+      <label class="row" for="touchCtl"><input type="checkbox" id="touchCtl"> Кнопки на екрані (мобільна версія)</label>
+      <div class="btns">
+        <button type="button" id="readyBtn">Я готовий</button>
+        <button type="button" id="startBtn" class="primary">Почати матч</button>
+        <button type="button" id="copyBtn" hidden>Скопіювати лінк</button>
+      </div>
+      <details>
+        <summary>Як грати</summary>
+        <ul>
+          <li>WASD або стрілки: рух. Shift: біг ×1.5. Запасу вистачає на 8 клітинок, його можна витрачати частинами. Коли запас закінчиться, 10 с втоми.</li>
+          <li>На телефоні: хрестовина зліва (можна вести пальцем по діагоналі), кнопка «БІГ» праворуч.</li>
+          <li>На зебрі машини зупиняються. Поза нею можуть збити.</li>
+          <li>Бус ТЦК (він один) помічає за 3 клітинки й відстає після 5. Працівники помічають за 2 й відстають після 4.</li>
+          <li>Спійманого тримають, поки не під'їде бус, а потім везуть на базу. Якщо спіймають усіх, це поразка.</li>
+          <li>На карті лежить листочок «БРОНЬ». З ним тебе одразу відпустять, але бронь пропаде й з'явиться деінде.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+
+  <div class="overlay" id="endScreen" hidden>
+    <div class="card">
+      <h2 id="endTitle">Кінець</h2>
+      <p class="sub" id="endText"></p>
+      <div class="btns"><button type="button" id="toLobby" class="primary">У лобі</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const MAP = {"tile":60,"grid":["GGGGGGGGGGGGGGGGGGGGGGGGGGGGGG","GGHHHGGGGHHHGGGGHHHGGGGHHHGGGG","GGHHHGGGGHHHGGGGHHHGGGGHHHGGGG","SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS","RRRRZRRXXRRRZRRRRRRRRRRRRRZRRR","RRRRZRRXXRRRZRRRRRRRRRRRRRZRRR","SSSSSSSVVSSSSSSSSSSSSSSSSSSSSS","BBBBBGSVVSBBBBBBGPBBBBBBBBBBBB","BPPPPPSVVSBBBBBBGPBBBBBBBBBBBB","BPPPPPSVVSPPPPPPBPBBBBBPPPPPPP","BPPPPPSYYSPPPPPPBPBBBBBPPPPPPP","BPPPPPSVVSPPPPPPBBBBBBBBBBPBBB","BBBBGGSVVSBBBBPPBBGGGGGBBBPBBB","SSSSSSSVVSSSSSSSSSSSSSSSSSSSSS","RRZRRRRXXRRRRRRRRZRRXXRRRZRRRR","RRZRRRRXXRRRRRRRRZRRXXRRRZRRRR","SSSSSSSSSSSSSSSSSSSSVVSSSSSSSS","BBBBBGBBBBBBBPBBBBBSVVSGTTTTTG","BBBBBGBPPPPBBPBBBBBSVVSGTTTTTG","BBBBBGBPPPPBBPBBBBBSVVSGTTTTTG","PPPPBGBPPPPBBPBBBBBSYYSGTTTTTG","PPPPBGBBBPBBBBPPPPPSVVSGGGGGGG","GGGGGGGGGGGGGGGGGGGSVVSGGGGGGG","SSSSSSSSSSSSSSSSSSSSVVSSSSSSSS","RRRRRRZRRRRRZRRRRRRRXXRRRRRZRR","RRRRRRZRRRRRZRRRRRRRXXRRRRRZRR","SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS","GGGCCCGGGGGGGCCCCGGGGGGCCCGGGG","GGGCCCGGGGGGGCCCCGGGGGGCCCGGGG","GGGGGGGGGGGGGGGGGGGGGGGGGGGGGG"],"houses":[[2,1,3,2],[9,1,3,2],[16,1,3,2],[23,1,3,2]],"cafes":[[3,27,3,2],[13,27,4,2],[23,27,3,2]],"base":[24,17,5,4],"trees":[[0,0],[6,0],[7,2],[13,1],[14,2],[20,0],[21,2],[27,1],[28,2],[19,12],[21,12],[2,10],[15,22],[5,22],[24,22],[28,22],[0,28],[1,29],[8,28],[10,29],[19,28],[20,27],[28,28],[29,29]],"buildings":[[0,7,5,1],[0,8,1,5],[1,12,3,1],[10,7,6,2],[10,12,4,1],[16,9,1,4],[17,11,1,2],[18,7,5,5],[23,7,7,2],[23,11,3,2],[27,11,3,2],[0,17,4,3],[4,17,1,5],[6,17,6,1],[6,18,1,4],[11,18,1,4],[7,21,2,1],[10,21,1,1],[12,17,1,5],[13,21,1,1],[14,17,5,4]]};
+const T = MAP.tile, W = 30, H = 30, MW = W * T, MH = H * T;
+const PC = ['#7CC4F0', '#C3A6F0', '#F5D37A', '#F4A07A'];
+const PCD = ['#4F93BF', '#9579C9', '#C9A444', '#CC7650'];
+const CARC = ['#D7D9E3', '#8C93B0', '#B98A9E', '#9CB8B0', '#E0C49A'];
+const PEDC = ['#D4B8A8', '#A8B8D4', '#C4D4A8', '#D4A8C0', '#B8D4D0', '#D8C89A'];
+const GREEN = '#34A866';
+const V = 180, SPR_M = 1.5, SPR_D = 8 * T, FAT_MS = 10000, FAT_M = 1 / 1.5, TCC_V = 0.8 * V;
+const VAN_SEE = 3 * T, VAN_LOSE = 5 * T, WK_SEE = 2 * T, WK_LOSE = 4 * T;
+const HIDE_MS = 5000, STUN_MS = 3000, IMMUNE_MS = 1500, CAP_MS = 1400, GRACE_MS = 3000;
+const PR = 14;
+const CAFE_NAMES = ["Кав'ярня A", "Кав'ярня B", "Кав'ярня C"];
+const bx = MAP.base[0] * T, by = MAP.base[1] * T;
+const BASE_SPOTS = [[bx + 50, by + 50], [bx + 250, by + 50], [bx + 50, by + 190], [bx + 250, by + 190]];
+
+// ---------- helpers ----------
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const tileAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? 'B' : MAP.grid[y][x];
+const treeSet = new Set(MAP.trees.map(t => t[0] + ',' + t[1]));
+const isTree = (x, y) => treeSet.has(x + ',' + y);
+function solid(x, y) { const t = tileAt(x, y); return t === 'B' || t === 'H' || t === 'C' || t === 'T'; }
+const isRoad = t => 'RVXZY'.includes(t);
+const tx = x => Math.floor(x / T), ty = y => Math.floor(y / T);
+function num(v, d) { v = Number(v); return Number.isFinite(v) ? v : d; }
+
+function collides(x, y, r) {
+  if (x < r || y < r || x > MW - r || y > MH - r) return true;
+  const x0 = tx(x - r), x1 = tx(x + r), y0 = ty(y - r), y1 = ty(y + r);
+  for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++) {
+    if (solid(i, j)) { const cx = clamp(x, i * T, i * T + T), cy = clamp(y, j * T, j * T + T); if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) return true; }
+    if (isTree(i, j)) { const cx = i * T + 30, cy = j * T + 30; if ((x - cx) ** 2 + (y - cy) ** 2 < (r + 16) ** 2) return true; }
+  }
+  return false;
+}
+function slide(e, dx, dy, r) {
+  let m = 0;
+  if (dx && !collides(e.x + dx, e.y, r)) { e.x += dx; m += Math.abs(dx); }
+  if (dy && !collides(e.x, e.y + dy, r)) { e.y += dy; m += Math.abs(dy); }
+  return m;
+}
+function stepTo(e, gx, gy, step, r) {
+  const dx = gx - e.x, dy = gy - e.y, L = Math.hypot(dx, dy);
+  if (L < 0.01) return 0;
+  const k = Math.min(1, step / L);
+  return slide(e, dx * k, dy * k, r);
+}
+const NB = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function bfsNext(sx, sy, gx, gy) {
+  if (sx === gx && sy === gy) return null;
+  const prev = new Int16Array(W * H).fill(-1), s = sy * W + sx, goal = gy * W + gx;
+  const q = [s]; prev[s] = s; let h = 0;
+  while (h < q.length) {
+    const cur = q[h++]; if (cur === goal) break;
+    const cx = cur % W, cy = (cur / W) | 0;
+    for (const [dx, dy] of NB) {
+      const nx = cx + dx, ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const k = ny * W + nx;
+      if (prev[k] !== -1) continue;
+      if (k !== goal && (solid(nx, ny) || isTree(nx, ny))) continue;
+      prev[k] = cur; q.push(k);
+    }
+  }
+  if (prev[goal] === -1) return null;
+  let k = goal; while (prev[k] !== s) k = prev[k];
+  return [k % W, (k / W) | 0];
+}
+function tileCost(x, y) {
+  if (solid(x, y) || isTree(x, y)) return Infinity;
+  const t = tileAt(x, y);
+  if ('SPZY'.includes(t)) return 1;
+  if (t === 'G') return 1.4;
+  return 9;
+}
+function botPath(sx, sy, goals) {
+  const dist2 = new Float32Array(W * H).fill(Infinity), prev = new Int32Array(W * H).fill(-1);
+  const s = sy * W + sx; dist2[s] = 0;
+  const heap = [];
+  const push = (d, k) => { heap.push([d, k]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  push(0, s); let end = -1;
+  while (heap.length) {
+    const [d, k] = pop(); if (d > dist2[k]) continue;
+    if (goals.has(k)) { end = k; break; }
+    const x = k % W, y = (k / W) | 0;
+    for (const [dx, dy] of NB) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const c = tileCost(nx, ny); if (c === Infinity) continue;
+      const nk = ny * W + nx, nd = d + c;
+      if (nd < dist2[nk]) { dist2[nk] = nd; prev[nk] = k; push(nd, nk); }
+    }
+  }
+  if (end < 0) return [];
+  const path = []; let k = end;
+  while (k !== s && k >= 0) { path.push([k % W, (k / W) | 0]); k = prev[k]; }
+  return path.reverse();
+}
+function cafeRect(i) { const c = MAP.cafes[i]; return { x: c[0] * T, y: c[1] * T, w: c[2] * T, h: c[3] * T }; }
+function touchesRect(p, R, pad) { const cx = clamp(p.x, R.x, R.x + R.w), cy = clamp(p.y, R.y, R.y + R.h); return Math.hypot(p.x - cx, p.y - cy) < PR + pad; }
+function spawnOf(slot) { const h = MAP.houses[slot]; return [(h[0] + h[2] / 2) * T, 3 * T + 28]; }
+function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+
+// ---------- static map render ----------
+function renderStatic(cafeIdx) {
+  const cv = document.createElement('canvas'); cv.width = MW; cv.height = MH;
+  const g = cv.getContext('2d');
+  const pat = (w, h, f) => { const pc = document.createElement('canvas'); pc.width = w; pc.height = h; f(pc.getContext('2d')); return g.createPattern(pc, 'repeat'); };
+  const lawn = pat(40, 40, x => { x.fillStyle = '#33463E'; x.fillRect(0, 0, 40, 40); x.strokeStyle = '#3E5549'; x.lineWidth = 2; x.beginPath(); x.moveTo(8, 14); x.lineTo(11, 8); x.lineTo(14, 14); x.moveTo(26, 32); x.lineTo(29, 26); x.lineTo(32, 32); x.stroke(); });
+  const pave = pat(30, 20, x => { x.fillStyle = '#5E6480'; x.fillRect(0, 0, 30, 20); x.strokeStyle = '#4A4F68'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(0, .75); x.lineTo(30, .75); x.moveTo(0, 10.75); x.lineTo(30, 10.75); x.moveTo(.75, 0); x.lineTo(.75, 10); x.moveTo(15.75, 10); x.lineTo(15.75, 20); x.stroke(); });
+  const cob = pat(24, 24, x => { x.fillStyle = '#4E536C'; x.fillRect(0, 0, 24, 24); [[1.5, 1.5, '#6D7392'], [12.5, 1.5, '#676D8C'], [1.5, 12.5, '#646A88'], [12.5, 12.5, '#71779A']].forEach(([a, b, c]) => { x.fillStyle = c; rr(x, a, b, 10, 10, 3.5); x.fill(); }); });
+  g.fillStyle = lawn; g.fillRect(0, 0, MW, MH);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const t = tileAt(x, y);
+    if (t === 'S') { g.fillStyle = pave; g.fillRect(x * T, y * T, T, T); }
+    else if (t === 'P') { g.fillStyle = cob; g.fillRect(x * T, y * T, T, T); }
+    else if (isRoad(t)) { g.fillStyle = '#1D2132'; g.fillRect(x * T, y * T, T, T); }
+  }
+  // lane dashes
+  g.strokeStyle = 'rgba(233,228,212,.55)'; g.lineWidth = 3; g.setLineDash([26, 18]);
+  for (const top of [4, 14, 24]) {
+    let x = 0;
+    while (x < W) { if (tileAt(x, top) === 'R') { const s = x; while (x < W && tileAt(x, top) === 'R') x++; g.beginPath(); g.moveTo(s * T + 8, (top + 1) * T); g.lineTo(x * T - 8, (top + 1) * T); g.stroke(); } else x++; }
+  }
+  for (const [left, r0, r1] of [[7, 6, 14], [20, 16, 24]]) {
+    let y = r0;
+    while (y < r1) { if (tileAt(left, y) === 'V') { const s = y; while (y < r1 && tileAt(left, y) === 'V') y++; g.beginPath(); g.moveTo((left + 1) * T, s * T + 8); g.lineTo((left + 1) * T, y * T - 8); g.stroke(); } else y++; }
+  }
+  g.setLineDash([]);
+  // curbs
+  g.strokeStyle = '#9AA0BC'; g.lineWidth = 5;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!'SP'.includes(tileAt(x, y))) continue;
+    for (const [dx, dy] of NB) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H || !isRoad(tileAt(nx, ny))) continue;
+      g.beginPath();
+      if (dy) { const yy = (dy < 0 ? y : y + 1) * T; g.moveTo(x * T, yy); g.lineTo(x * T + T, yy); }
+      else { const xx = (dx < 0 ? x : x + 1) * T; g.moveTo(xx, y * T); g.lineTo(xx, y * T + T); }
+      g.stroke();
+    }
+  }
+  // crosswalks
+  g.fillStyle = '#EDE8DA';
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const t = tileAt(x, y);
+    if (t === 'Z') for (let k = 0; k < 4; k++) g.fillRect(x * T + 8, y * T + 5 + k * 14, T - 16, 8);
+    if (t === 'Y') for (let k = 0; k < 4; k++) g.fillRect(x * T + 5 + k * 14, y * T + 8, 8, T - 16);
+  }
+  // lamps
+  const lamps = [[2, 3], [11, 3], [20, 3], [28, 3], [4, 6], [14, 6], [26, 6], [1, 13], [12, 13], [24, 13], [5, 16], [15, 16], [27, 16], [3, 23], [12, 23], [26, 23], [8, 26], [18, 26], [28, 26]];
+  for (const [x, y] of lamps) {
+    const cx = x * T + 30, cy = y * T + 30, gr = g.createRadialGradient(cx, cy, 0, cx, cy, 70);
+    gr.addColorStop(0, 'rgba(253,230,138,.22)'); gr.addColorStop(1, 'rgba(253,230,138,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, 70, 0, 7); g.fill();
+    g.fillStyle = '#FDE68A'; g.beginPath(); g.arc(cx, cy, 4, 0, 7); g.fill();
+  }
+  // buildings
+  const R = rng(7);
+  for (const [c, r, w, h] of MAP.buildings) {
+    const X = c * T + 3, Y = r * T + 3, Wd = w * T - 6, Hd = h * T - 6;
+    g.fillStyle = 'rgba(20,23,38,.5)'; rr(g, X + 4, Y + 6, Wd, Hd, 6); g.fill();
+    g.fillStyle = '#4F5275'; rr(g, X, Y, Wd, Hd, 6); g.fill();
+    g.fillStyle = '#5E6189'; rr(g, X + 4, Y + 4, Wd - 8, Hd - 8, 4); g.fill();
+    for (let yy = Y + 12; yy + 10 <= Y + Hd - 8; yy += 22) for (let xx = X + 12; xx + 12 <= X + Wd - 8; xx += 22) {
+      g.fillStyle = R() < 0.38 ? '#FDE68A' : '#3E4163'; rr(g, xx, yy, 12, 10, 1.5); g.fill();
+    }
+  }
+  // trees
+  for (const [x, y] of MAP.trees) {
+    const cx = x * T + 30, cy = y * T + 30;
+    g.fillStyle = '#3F6B52'; g.beginPath(); g.arc(cx, cy, 24, 0, 7); g.fill();
+    g.fillStyle = '#5C8C6C'; g.beginPath(); g.arc(cx - 6, cy - 6, 13, 0, 7); g.fill();
+  }
+  // courtyard details
+  g.fillStyle = '#C9B38A'; g.strokeStyle = '#8C7A5A'; g.lineWidth = 3; rr(g, 130, 545, 80, 80, 8); g.fill(); g.stroke();
+  g.fillStyle = '#8C6B4F'; rr(g, 445, 1100, 130, 16, 4); g.fill(); rr(g, 445, 1200, 130, 16, 4); g.fill(); rr(g, 1440, 560, 120, 16, 4); g.fill();
+  // houses
+  g.textAlign = 'center';
+  MAP.houses.forEach(([c, r, w, h], i) => {
+    const X = c * T, Y = r * T, Wd = w * T, Hd = h * T, rh = Hd - 34;
+    g.save(); g.shadowColor = PC[i]; g.shadowBlur = 22; g.fillStyle = PC[i]; rr(g, X, Y, Wd, rh + 6, 6); g.fill(); g.restore();
+    g.fillStyle = PCD[i]; g.fillRect(X, Y + rh / 2, Wd, rh / 2);
+    g.strokeStyle = 'rgba(29,33,50,.18)'; g.lineWidth = 2;
+    for (let k = 1; k < 8; k++) { const yy = Y + k * rh / 8; g.beginPath(); g.moveTo(X + 4, yy); g.lineTo(X + Wd - 4, yy); g.stroke(); }
+    g.fillStyle = '#6B4B3A'; g.fillRect(X + Wd - 44, Y + 10, 18, 22);
+    g.fillStyle = '#E9E1D0'; g.fillRect(X, Y + rh, Wd, 34);
+    for (const wx of [X + 18, X + Wd - 50]) {
+      g.fillStyle = '#FDE68A'; g.fillRect(wx, Y + Hd - 27, 32, 20);
+      g.strokeStyle = '#6B4B3A'; g.lineWidth = 3; g.strokeRect(wx, Y + Hd - 27, 32, 20);
+      g.lineWidth = 2; g.beginPath(); g.moveTo(wx + 16, Y + Hd - 27); g.lineTo(wx + 16, Y + Hd - 7); g.stroke();
+    }
+    g.fillStyle = '#6B4B3A'; rr(g, X + Wd / 2 - 14, Y + Hd - 30, 28, 30, 3); g.fill();
+    g.fillStyle = '#FDE68A'; g.beginPath(); g.arc(X + Wd / 2 + 7, Y + Hd - 15, 2.5, 0, 7); g.fill();
+    g.fillStyle = '#1D2132'; g.font = '800 20px Manrope, sans-serif'; g.fillText('Дім ' + (i + 1), X + Wd / 2, Y + 30);
+  });
+  // base
+  {
+    const [c, r, w, h] = MAP.base, X = c * T, Y = r * T, Wd = w * T, Hd = h * T;
+    g.fillStyle = '#3B2A36'; rr(g, X, Y, Wd, Hd, 8); g.fill();
+    g.save(); g.shadowColor = '#F87171'; g.shadowBlur = 12; g.strokeStyle = '#F87171'; g.lineWidth = 3; g.setLineDash([10, 7]); rr(g, X + 10, Y + 10, Wd - 20, Hd - 20, 6); g.stroke(); g.restore(); g.setLineDash([]);
+    g.fillStyle = '#4A3542'; rr(g, X + 90, Y + 70, 120, 90, 6); g.fill();
+    g.fillStyle = '#FCA5A5'; g.font = '800 26px Manrope, sans-serif'; g.fillText('БАЗА ТЦК', X + Wd / 2, Y + 112);
+    g.fillStyle = '#F9C6C6'; g.font = '700 15px Manrope, sans-serif'; g.fillText('виходу немає', X + Wd / 2, Y + 142);
+    g.fillStyle = '#F87171'; rr(g, X + 120, Y + Hd - 8, 60, 12, 3); g.fill();
+  }
+  // cafes
+  MAP.cafes.forEach(([c, r, w, h], i) => {
+    const X = c * T, Y = r * T, Wd = w * T, Hd = h * T;
+    if (i === cafeIdx) {
+      g.strokeStyle = '#F4A07A'; g.lineWidth = 3; g.setLineDash([10, 8]); rr(g, X - 18, Y - 18, Wd + 36, Hd + 36, 18); g.stroke(); g.setLineDash([]);
+      g.save(); g.shadowColor = '#F4A07A'; g.shadowBlur = 24; g.fillStyle = '#8A5A3C'; rr(g, X, Y, Wd, Hd, 10); g.fill(); g.restore();
+      const cx = X + Wd / 2;
+      g.fillStyle = '#F6E7D0'; g.beginPath(); g.moveTo(cx - 18, Y + 26); g.lineTo(cx + 18, Y + 26); g.lineTo(cx + 18, Y + 46); g.ellipse(cx, Y + 46, 18, 14, 0, 0, Math.PI); g.closePath(); g.fill();
+      g.strokeStyle = '#F6E7D0'; g.lineWidth = 4; g.beginPath(); g.arc(cx + 18, Y + 38, 8, -Math.PI / 2, Math.PI / 2); g.stroke();
+      g.fillStyle = '#FFF4E6'; g.font = '800 22px Manrope, sans-serif'; g.fillText(CAFE_NAMES[i], cx, Y + Hd - 18);
+    } else {
+      g.fillStyle = '#3E4359'; rr(g, X, Y, Wd, Hd, 10); g.fill();
+      g.fillStyle = '#9AA0B8'; g.font = '700 20px Manrope, sans-serif'; g.fillText(CAFE_NAMES[i], X + Wd / 2, Y + Hd / 2 + 4);
+      g.font = '700 14px Manrope, sans-serif'; g.fillText('зачинено', X + Wd / 2, Y + Hd / 2 + 26);
+    }
+  });
+  return cv;
+}
+
+// ---------- state ----------
+const S = {
+  mode: 'lobby', match: null, isHost: false, mySlot: -1, myLabel: null, hostLabel: null,
+  stat: null, statMini: null,
+  me: { x: 0, y: 0, sprinting: false, sprintLeft: SPR_D, fatUntil: 0, placed: false, lastSt: 0, stunShown: 0 },
+  sim: null, snap: null, snapAt: 0, lastQ: -1,
+  disp: { cars: [], peds: [], pl: [{}, {}, {}, {}] },
+  ignored: new Set(), ready: false,
+  nick: '', net: 'connecting', room: null
+};
+function loadNick() { try { const n = localStorage.getItem('coffee-nick'); if (n) return n; } catch (e) {} return 'Гравець ' + Math.floor(10 + Math.random() * 89); }
+function saveNick(n) { try { localStorage.setItem('coffee-nick', n); } catch (e) {} }
+S.nick = loadNick();
+
+// ---------- host simulation ----------
+function newSim(match) {
+  const R = rng(match.seed);
+  const cars = [];
+  const HL = [];
+  for (const r of [4, 14, 24]) { HL.push({ y: r * T + 30, dir: -1 }); HL.push({ y: (r + 1) * T + 30, dir: 1 }); }
+  const LOOPS = [{ down: 7 * T + 30, up: 8 * T + 30, y0: 4 * T + 30, y1: 15 * T + 30 }, { down: 20 * T + 30, up: 21 * T + 30, y0: 14 * T + 30, y1: 25 * T + 30 }];
+  for (const L of HL) for (let i = 0; i < 3; i++) {
+    const base = 190 + R() * 60;
+    cars.push({ ax: 'h', x: ((i + R() * 0.5) / 3) * MW, y: L.y, dir: L.dir, ldir: L.dir, base, spd: base, st: 'n', until: 0, tgt: -1, stopUntil: 0, tcc: false });
+  }
+  for (const L of LOOPS) {
+    const b1 = 170 + R() * 40, b2 = 170 + R() * 40;
+    cars.push({ ax: 'v', loop: L, x: L.down, y: L.y0 + (L.y1 - L.y0) * (0.2 + R() * 0.3), dir: 1, base: b1, spd: b1, st: 'n', until: 0, tgt: -1, stopUntil: 0, tcc: false });
+    cars.push({ ax: 'v', loop: L, x: L.up, y: L.y0 + (L.y1 - L.y0) * (0.5 + R() * 0.3), dir: -1, base: b2, spd: b2, st: 'n', until: 0, tgt: -1, stopUntil: 0, tcc: false });
+  }
+  cars.forEach((c, i) => c.i = i);
+  const vanCands = cars.filter(c => !(c.ax === 'h' && c.y < 6 * T));
+  for (let k = 0; k < 1 && vanCands.length; k++) { const j = Math.floor(R() * vanCands.length); vanCands.splice(j, 1)[0].tcc = true; }
+  // peds
+  const walkTiles = [];
+  for (let y = 3; y < H; y++) for (let x = 0; x < W; x++) if ('SP'.includes(tileAt(x, y)) && !(y === 3 && x % 7 < 5)) walkTiles.push([x, y]);
+  for (let i = walkTiles.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [walkTiles[i], walkTiles[j]] = [walkTiles[j], walkTiles[i]]; }
+  const peds = walkTiles.slice(0, 24).map(([x, y], i) => ({ i, x: x * T + 30, y: y * T + 30, tx: x, ty: y, px: x, py: y, spd: 45 + R() * 30, st: 'n', until: 0, tgt: -1, next: null, pathT: 0, tcc: false }));
+  const wc = peds.filter(p => p.ty >= 8);
+  for (let k = 0; k < 2 && wc.length; k++) { const j = Math.floor(R() * wc.length); wc.splice(j, 1)[0].tcc = true; }
+  const cr = MAP.cafes[match.cafe];
+  const goals = new Set();
+  for (let y = cr[1]; y < cr[1] + cr[3]; y++) for (let x = cr[0]; x < cr[0] + cr[2]; x++) for (const [dx, dy] of NB) {
+    const nx = x + dx, ny = y + dy; if (!solid(nx, ny) && !isTree(nx, ny)) goals.add(ny * W + nx);
+  }
+  const players = [];
+  for (let s = 0; s < 4; s++) {
+    const label = match.slots[s], bot = match.bots.includes(s);
+    if (!label && !bot) { players.push(null); continue; }
+    const [x, y] = spawnOf(s);
+    players.push({ slot: s, label, bot, x, y, st: 0, until: 0, immune: 0, sp: false, fa: false, fatUntil: 0, sprLeft: SPR_D, path: null, pi: 0, replan: 0, stuck: 0, lx: x, ly: y, bron: false, safe: 0 });
+  }
+  const sim = { t0: Date.now(), cars, peds, players, goals, fx: [], squads: [], queue: [], seq: 0, end: 0, leaf: null };
+  sim.leaf = randomLeafSpot(R, players);
+  return sim;
+}
+const act = p => p && (p.st === 0 || p.st === 1);
+const huntable = (p, now) => act(p) && now >= (p.safe || 0);
+function randomLeafSpot(R, players) {
+  R = R || Math.random;
+  for (let k = 0; k < 400; k++) {
+    const x = Math.floor(R() * W), y = 6 + Math.floor(R() * 20);
+    const t = tileAt(x, y);
+    if (!'SPG'.includes(t) || isTree(x, y)) continue;
+    const pt = { x: x * T + 30, y: y * T + 30 };
+    if (players && players.some(p => p && act(p) && dist(p, pt) < 4 * T)) continue;
+    return pt;
+  }
+  return { x: 13 * T + 30, y: 16 * T + 30 };
+}
+function carO(c) { return c.ax === 'h' ? (c.dir > 0 ? 0 : 1) : (c.dir > 0 ? 2 : 3); }
+function restoreDir(c) { if (c.ax === 'h') c.dir = c.ldir; else if (c.loop) c.dir = (c.x === c.loop.down) ? 1 : -1; }
+function stun(p, now) { p.st = 1; p.until = now + STUN_MS; }
+const DROP = [26, 15];
+function roadPath(sx, sy, gx, gy) {
+  sx = clamp(sx, 0, W - 1); sy = clamp(sy, 0, H - 1);
+  if (sx === gx && sy === gy) return [];
+  const prev = new Int16Array(W * H).fill(-1), s = sy * W + sx, goal = gy * W + gx;
+  const q = [s]; prev[s] = s; let h = 0;
+  while (h < q.length) {
+    const cur = q[h++]; if (cur === goal) break;
+    const cx = cur % W, cy = (cur / W) | 0;
+    for (const [dx, dy] of NB) {
+      const nx = cx + dx, ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const k = ny * W + nx;
+      if (prev[k] !== -1 || !isRoad(tileAt(nx, ny))) continue;
+      prev[k] = cur; q.push(k);
+    }
+  }
+  if (prev[goal] === -1) return [];
+  const path = []; let k = goal;
+  while (k !== s) { path.push([k % W, (k / W) | 0]); k = prev[k]; }
+  return path.reverse();
+}
+function nearestRoadTile(x, y) {
+  let best = null, bd = Infinity;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    if (!isRoad(tileAt(i, j))) continue;
+    const d = Math.hypot(i * T + 30 - x, j * T + 30 - y);
+    if (d < bd) { bd = d; best = [i, j]; }
+  }
+  return best;
+}
+function startDeliver(van, p, now) {
+  van.st = 'deliver'; van.pass = p.slot; van.squad = null; van.fetchFor = -1;
+  van.route = roadPath(tx(van.x), ty(van.y), DROP[0], DROP[1]); van.ri = 0;
+}
+function escortMove(p, carrier, target, dt) {
+  const ex = tx(p.x), ey = ty(p.y), gx0 = tx(target.x), gy0 = ty(target.y);
+  let gx = target.x, gy = target.y;
+  if (ex !== gx0 || ey !== gy0) { const n = bfsNext(ex, ey, gx0, gy0); if (n) { gx = n[0] * T + 30; gy = n[1] * T + 30; } }
+  const dx = gx - p.x, dy = gy - p.y, L = Math.hypot(dx, dy), step = 110 * dt;
+  if (L > 0) { const k = Math.min(1, step / L); p.x += dx * k; p.y += dy * k; }
+  carrier.x = p.x - 22; carrier.y = p.y - 4;
+}
+function placeInBase(p) { p.cst = 2; [p.x, p.y] = BASE_SPOTS[p.slot]; }
+function capture(p, e, now) {
+  const sim = S.sim;
+  if (p.bron) {
+    p.bron = false; p.safe = now + 2500;
+    sim.fx.push({ x: p.x, y: p.y, t: now, k: 1 });
+    sim.leaf = randomLeafSpot(null, sim.players);
+    if (e.van) { e.st = 'return'; return; }
+    e.st = 'hide'; e.until = now + HIDE_MS;
+    if (e.ax) { e.stopUntil = now + 800; restoreDir(e); }
+    return;
+  }
+  p.st = 2; p.until = now + CAP_MS; p.cst = 0; p.heldAt = now; p.sp = false;
+  sim.fx.push({ x: p.x, y: p.y, t: now, k: 0 });
+  if (e.van) { e.st = 'escort'; e.pl = p.slot; return; }
+  if (e.ax) { p.cst = 1; startDeliver(e, p, now); return; }
+  e.st = 'escort'; e.pl = p.slot; sim.queue.push(p.slot);
+}
+function vanTransport(c, dt, now) {
+  const sim = S.sim;
+  if (c.st === 'wait') { c.spd = 0; const p = sim.players[c.fetchFor]; if (!p || p.st !== 2 || p.cst !== 0) { c.st = 'hide'; c.until = now + HIDE_MS; c.fetchFor = -1; toLane(c); } return; }
+  if (!c.route || c.ri >= c.route.length) {
+    if (c.st === 'fetch') { c.st = 'wait'; c.spd = 0; return; }
+    const p = sim.players[c.pass];
+    if (p && p.st === 2) placeInBase(p);
+    c.pass = -1; toLane(c); c.st = 'hide'; c.until = now + HIDE_MS;
+    return;
+  }
+  const [a, b] = c.route[c.ri]; const gx = a * T + 30, gy = b * T + 30;
+  const dx = gx - c.x, dy = gy - c.y, L = Math.hypot(dx, dy), step = 230 * dt;
+  if (L <= step) { c.x = gx; c.y = gy; c.ri++; } else { c.x += dx / L * step; c.y += dy / L * step; }
+  if (Math.abs(dx) > Math.abs(dy)) { c.ax = 'h'; c.dir = Math.sign(dx) || 1; } else if (L > 0.5) { c.ax = 'v'; c.dir = Math.sign(dy) || 1; }
+  c.spd = 230;
+  if (c.st === 'deliver') { const p = sim.players[c.pass]; if (p) { p.x = c.x; p.y = c.y; } }
+}
+function toLane(c) {
+  const lanes = [270, 330, 870, 930, 1470, 1530];
+  let best = 930, bd = Infinity; for (const y of lanes) { const d = Math.abs(y - c.y); if (d < bd) { bd = d; best = y; } }
+  c.ax = 'h'; c.loop = null; c.y = best; c.ldir = (best === 330 || best === 930 || best === 1530) ? 1 : -1; c.dir = c.ldir;
+  c.x = clamp(c.x, 40, MW - 40);
+}
+function tccCheck(e, see, lose, now) {
+  const sim = S.sim;
+  if (now - sim.t0 < GRACE_MS) return;
+  if (e.st === 'chase') {
+    if (e.squad) return;
+    const p = sim.players[e.tgt];
+    if (!act(p) || dist(e, p) > lose) { e.st = 'hide'; e.until = now + HIDE_MS; if (e.ax) restoreDir(e); }
+    return;
+  }
+  if (e.st === 'hide' && now > e.until) e.st = 'n';
+  let best = null, bd = see;
+  for (const p of sim.players) { if (!huntable(p, now)) continue; const d = dist(e, p); if (d < bd) { bd = d; best = p; } }
+  if (best) { e.st = 'chase'; e.tgt = best.slot; }
+}
+function aheadBlocked(c, cars, players) {
+  const look = 95;
+  for (const o of cars) {
+    if (o === c) continue;
+    if (c.ax === 'h') { if (o.ax !== 'h' || Math.abs(o.y - c.y) > 5) continue; const d = (o.x - c.x) * c.dir; if (d > 0 && d < look) return true; }
+    else { if (o.ax !== 'v' || Math.abs(o.x - c.x) > 5) continue; const d = (o.y - c.y) * c.dir; if (d > 0 && d < look) return true; }
+  }
+  for (const p of players) {
+    if (!act(p)) continue;
+    const t = tileAt(tx(p.x), ty(p.y));
+    if (t !== 'Z' && t !== 'Y') continue;
+    if (c.ax === 'h') { if (Math.abs(p.y - c.y) > 50) continue; const d = (p.x - c.x) * c.dir; if (d > 10 && d < 115) return true; }
+    else { if (Math.abs(p.x - c.x) > 50) continue; const d = (p.y - c.y) * c.dir; if (d > 10 && d < 115) return true; }
+  }
+  return false;
+}
+function carHits(c, p) {
+  const hw = c.ax === 'h' ? 32 : 17, hh = c.ax === 'h' ? 17 : 32;
+  const cx = clamp(p.x, c.x - hw, c.x + hw), cy = clamp(p.y, c.y - hh, c.y + hh);
+  return Math.hypot(p.x - cx, p.y - cy) < PR;
+}
+function carNear(x, y, r) { for (const c of S.sim.cars) if (Math.hypot(c.x - x, c.y - y) < r && c.spd > 30) return true; return false; }
+function carsTick(dt, now) {
+  const sim = S.sim;
+  for (const c of sim.cars) {
+    if (c.tcc && (c.st === 'n' || c.st === 'hide') && sim.queue.length) {
+      const slot = sim.queue.shift(), p = sim.players[slot];
+      if (p && p.st === 2 && p.cst === 0) {
+        const tgt = nearestRoadTile(p.x, p.y);
+        c.fetchFor = slot; c.st = 'fetch'; c.route = tgt ? roadPath(tx(c.x), ty(c.y), tgt[0], tgt[1]) : []; c.ri = 0;
+      }
+    }
+    if (c.st === 'fetch' || c.st === 'wait' || c.st === 'deliver') { vanTransport(c, dt, now); continue; }
+    if (c.tcc) tccCheck(c, VAN_SEE, VAN_LOSE, now);
+    if (c.st === 'chase') {
+      const p = sim.players[c.tgt], sp = TCC_V;
+      if (c.squad) { c.spd = 0; continue; }
+      let along, perp;
+      if (c.ax === 'h') { const d = p.x - c.x; along = d; perp = Math.abs(p.y - c.y); if (Math.abs(d) > 6) c.dir = Math.sign(d); c.x = clamp(c.x + c.dir * Math.min(Math.abs(d), sp * dt), 40, MW - 40); }
+      else { const d = p.y - c.y; along = d; perp = Math.abs(p.x - c.x); if (Math.abs(d) > 6) c.dir = Math.sign(d); c.y = clamp(c.y + c.dir * Math.min(Math.abs(d), sp * dt), c.loop.y0, c.loop.y1); }
+      c.spd = sp;
+      if (dist(c, p) < 52) { capture(p, c, now); continue; }
+      if (Math.abs(along) < 50 && perp < VAN_SEE) {
+        c.squad = { x: c.x, y: c.y, tgt: p.slot, van: c, st: 'chase', next: null, pathT: 0 };
+        sim.squads.push(c.squad);
+      }
+      continue;
+    }
+    if (now < c.stopUntil) { c.spd = 0; continue; }
+    const target = aheadBlocked(c, sim.cars, sim.players) ? 0 : c.base;
+    c.spd += (target - c.spd) * Math.min(1, dt * (target ? 2.5 : 8));
+    if (c.ax === 'h') {
+      c.x += c.dir * c.spd * dt;
+      if (c.x < -90) c.x = MW + 90; else if (c.x > MW + 90) c.x = -90;
+    } else {
+      c.y += c.dir * c.spd * dt;
+      const L = c.loop;
+      if (c.dir > 0 && c.y >= L.y1) { c.y = L.y1; c.dir = -1; c.x = L.up; }
+      else if (c.dir < 0 && c.y <= L.y0) { c.y = L.y0; c.dir = 1; c.x = L.down; }
+    }
+    if (c.spd > 40) for (const p of sim.players) if (p && p.st === 0 && now > p.immune && carHits(c, p)) stun(p, now);
+  }
+}
+function pedsTick(dt, now) {
+  const sim = S.sim;
+  const van = sim.cars.find(c => c.tcc);
+  for (const e of sim.peds) {
+    if (e.st === 'escort') {
+      const p = sim.players[e.pl];
+      if (!p || p.st !== 2 || p.cst !== 0) { e.st = 'hide'; e.until = now + HIDE_MS; e.tx = null; continue; }
+      if (van && van.st === 'wait' && van.fetchFor === e.pl) {
+        escortMove(p, e, van, dt);
+        if (dist(p, van) < 45) { p.cst = 1; startDeliver(van, p, now); e.st = 'hide'; e.until = now + HIDE_MS; e.tx = null; }
+      } else { e.x = p.x - 22; e.y = p.y - 4; }
+      if (p.cst === 0 && now - p.heldAt > 30000) { placeInBase(p); sim.queue = sim.queue.filter(s => s !== p.slot); }
+      continue;
+    }
+    if (e.tcc) tccCheck(e, WK_SEE, WK_LOSE, now);
+    if (e.st === 'chase') {
+      const p = sim.players[e.tgt];
+      const ex = tx(e.x), ey = ty(e.y), px = tx(p.x), py = ty(p.y);
+      let gx = p.x, gy = p.y;
+      if (ex !== px || ey !== py) {
+        if (now > e.pathT) { e.next = bfsNext(ex, ey, px, py); e.pathT = now + 250; }
+        if (e.next) { gx = e.next[0] * T + 30; gy = e.next[1] * T + 30; if (Math.hypot(gx - e.x, gy - e.y) < 6) e.pathT = 0; }
+      }
+      stepTo(e, gx, gy, TCC_V * dt, 10);
+      if (dist(e, p) < 26) capture(p, e, now);
+      e.tx = null;
+      continue;
+    }
+    if (e.tx == null || Math.hypot(e.tx * T + 30 - e.x, e.ty * T + 30 - e.y) < 4) {
+      const cx = tx(e.x), cy = ty(e.y);
+      const ok = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !solid(x, y) && !isTree(x, y);
+      let c = NB.map(([dx, dy]) => [cx + dx, cy + dy]).filter(([x, y]) => ok(x, y) && 'SP'.includes(tileAt(x, y)));
+      if (!c.length) c = NB.map(([dx, dy]) => [cx + dx, cy + dy]).filter(([x, y]) => ok(x, y) && tileAt(x, y) === 'G');
+      if (!c.length) c = NB.map(([dx, dy]) => [cx + dx, cy + dy]).filter(([x, y]) => ok(x, y));
+      const dx = cx - e.px, dy = cy - e.py;
+      let pick = c.find(([x, y]) => x === cx + dx && y === cy + dy && (dx || dy));
+      if (!pick || Math.random() < 0.3) {
+        const c2 = c.length > 1 ? c.filter(([x, y]) => !(x === e.px && y === e.py)) : c;
+        pick = c2[Math.floor(Math.random() * c2.length)];
+      }
+      e.px = cx; e.py = cy;
+      if (pick) { e.tx = pick[0]; e.ty = pick[1]; } else { e.tx = cx; e.ty = cy; }
+    }
+    stepTo(e, e.tx * T + 30, e.ty * T + 30, e.spd * dt, 10);
+  }
+}
+function squadsTick(dt, now) {
+  const sim = S.sim;
+  for (const q of sim.squads) {
+    const van = q.van;
+    if (q.st === 'chase') {
+      const p = sim.players[q.tgt];
+      if (!act(p) || dist(q, p) > VAN_LOSE) { q.st = 'return'; continue; }
+      const ex = tx(q.x), ey = ty(q.y), px = tx(p.x), py = ty(p.y);
+      let gx = p.x, gy = p.y;
+      if (ex !== px || ey !== py) {
+        if (now > q.pathT) { q.next = bfsNext(ex, ey, px, py); q.pathT = now + 250; }
+        if (q.next) { gx = q.next[0] * T + 30; gy = q.next[1] * T + 30; if (Math.hypot(gx - q.x, gy - q.y) < 6) q.pathT = 0; }
+      }
+      stepTo(q, gx, gy, TCC_V * dt, 10);
+      if (dist(q, p) < 26) capture(p, q, now);
+    } else if (q.st === 'escort') {
+      const p = sim.players[q.pl];
+      if (!p || p.st !== 2 || p.cst !== 0) { q.done = true; continue; }
+      escortMove(p, q, van, dt);
+      if (dist(p, van) < 45) { p.cst = 1; startDeliver(van, p, now); q.done = true; }
+      if (now - p.heldAt > 30000) { placeInBase(p); q.done = true; }
+    } else {
+      stepTo(q, van.x, van.y, TCC_V * 1.2 * dt, 4);
+      if (dist(q, van) < 20 || q.x === undefined) q.done = true;
+      q.stuckT = (q.stuckT || 0) + dt; if (q.stuckT > 8) q.done = true;
+    }
+  }
+  for (const q of sim.squads) if (q.done) {
+    const van = q.van; if (van.squad === q) van.squad = null;
+    if (van.st === 'chase') { van.st = 'hide'; van.until = now + HIDE_MS; restoreDir(van); }
+  }
+  sim.squads = sim.squads.filter(q => !q.done);
+}
+function threatFor(p) {
+  const sim = S.sim;
+  for (const e of sim.cars) if (e.st === 'chase' && e.tgt === p.slot && dist(e, p) < 260) return e;
+  for (const e of sim.peds) if (e.st === 'chase' && e.tgt === p.slot && dist(e, p) < 200) return e;
+  for (const e of sim.squads) if (e.st === 'chase' && e.tgt === p.slot && dist(e, p) < 200) return e;
+  return null;
+}
+function botTick(p, dt, now) {
+  const sim = S.sim;
+  const endSpr = () => { p.sp = false; p.sprLeft = 0; p.fatUntil = now + FAT_MS; };
+  if (p.st === 1) { p.sp = false; p.fa = now < p.fatUntil; return; }
+  if (p.st !== 0) return;
+  if (!p.path || now > p.replan) { p.path = botPath(tx(p.x), ty(p.y), sim.goals); p.pi = 0; p.replan = now + 4000; }
+  let gx, gy;
+  const R = cafeRect(S.match.cafe);
+  if (p.pi < p.path.length) {
+    const [a, b] = p.path[p.pi]; gx = a * T + 30; gy = b * T + 30;
+    if (Math.hypot(gx - p.x, gy - p.y) < 8) { p.pi++; return; }
+    if (isRoad(tileAt(a, b)) && !isRoad(tileAt(tx(p.x), ty(p.y))) && carNear(gx, gy, 200)) return;
+  } else { gx = R.x + R.w / 2; gy = R.y + R.h / 2; }
+  if (sim.leaf && !p.bron && dist(p, sim.leaf) < 3 * T) { gx = sim.leaf.x; gy = sim.leaf.y; p.replan = Math.min(p.replan, now + 800); }
+  const fat = now < p.fatUntil;
+  if (!fat && p.sprLeft <= 0) p.sprLeft = SPR_D;
+  const threat = threatFor(p);
+  if (threat && !fat && p.sprLeft > 0) p.sp = true;
+  if (p.sp && !threat) p.sp = false;
+  const speed = V * (p.sp ? SPR_M : (now < p.fatUntil ? FAT_M : 1));
+  const moved = stepTo(p, gx, gy, speed * dt, PR);
+  if (p.sp) { p.sprLeft -= moved; if (p.sprLeft <= 0) endSpr(); }
+  p.fa = now < p.fatUntil;
+  if (moved < speed * dt * 0.2) { p.stuck += dt; if (p.stuck > 1) { p.stuck = 0; p.replan = 0; slide(p, (Math.random() - .5) * 20, (Math.random() - .5) * 20, PR); } } else p.stuck = 0;
+}
+function hostTick(dt) {
+  const sim = S.sim, now = Date.now();
+  const peers = S.room ? S.room.peers() : [];
+  for (const p of sim.players) {
+    if (!p) continue;
+    if (p.label && p.label === S.myLabel) { if (p.st !== 2 || S.me.placed) { p.x = S.me.x; p.y = S.me.y; } p.sp = S.me.sprinting; p.fa = now < S.me.fatUntil; }
+    else if (!p.bot) {
+      const peer = peers.find(q => q.peer === p.label);
+      if (!peer) { if (p.st !== 3 && p.st !== 2) p.st = 4; continue; }
+      const g = peer.presence && peer.presence.g;
+      if (g && g.m === S.match.id && (p.st !== 2 || g.pl)) { p.x = clamp(num(g.x, p.x), 0, MW); p.y = clamp(num(g.y, p.y), 0, MH); p.sp = !!g.sp; p.fa = !!g.fa; }
+    }
+  }
+  for (const p of sim.players) {
+    if (!p) continue;
+    if (p.st === 1 && now >= p.until) { p.st = 0; p.immune = now + IMMUNE_MS; }
+  }
+  for (const p of sim.players) if (p && p.bot) botTick(p, dt, now);
+  carsTick(dt, now);
+  squadsTick(dt, now);
+  pedsTick(dt, now);
+  const R = cafeRect(S.match.cafe);
+  for (const p of sim.players) if (act(p) && touchesRect(p, R, 6)) { p.st = 3; p.sp = false; if (p.bron) { p.bron = false; sim.leaf = randomLeafSpot(null, sim.players); } }
+  if (sim.leaf) for (const p of sim.players) if (act(p) && !p.bron && dist(p, sim.leaf) < 30) { p.bron = true; sim.leaf = null; sim.fx.push({ x: p.x, y: p.y, t: now, k: 2 }); break; }
+  for (const p of sim.players) if (p && p.bron && (p.st === 2 || p.st === 4)) { p.bron = false; sim.leaf = randomLeafSpot(null, sim.players); }
+  sim.fx = sim.fx.filter(f => now - f.t < CAP_MS + 300);
+  if (!sim.end) {
+    const live = sim.players.filter(p => p && p.st !== 4);
+    if (live.length && live.every(p => p.st === 3 || (p.st === 2 && p.cst === 2))) {
+      sim.end = now;
+      const fin = live.filter(p => p.st === 3).map(p => p.slot), cap = live.filter(p => p.st === 2).map(p => p.slot);
+      S.match = Object.assign({}, S.match, { ph: 'end', res: { fin, cap, time: now - sim.t0 } });
+    } else if (!live.length) { sim.end = now; S.match = Object.assign({}, S.match, { ph: 'end', res: { fin: [], cap: [], time: now - sim.t0 } }); }
+  }
+}
+function packWorld() {
+  const sim = S.sim, now = Date.now();
+  return {
+    t: now - sim.t0, n: ++sim.seq,
+    c: sim.cars.map(c => [Math.round(c.x), Math.round(c.y), carO(c), c.st === 'n' ? 0 : 1]),
+    p: sim.peds.map(e => [Math.round(e.x), Math.round(e.y), e.st === 'n' ? 0 : (e.st === 'chase' || e.st === 'escort' ? 2 : 1)]),
+    b: sim.players.filter(p => p && p.bot).map(p => [p.slot, Math.round(p.x), Math.round(p.y), p.sp ? 1 : 0, p.fa ? 1 : 0]),
+    s: sim.players.map(p => p ? [p.st, Math.max(0, Math.round((p.until || 0) - now)), p.bron ? 1 : 0, p.cst || 0, Math.round(p.x), Math.round(p.y)] : null),
+    l: sim.leaf ? [Math.round(sim.leaf.x), Math.round(sim.leaf.y)] : null,
+    f: sim.fx.map(f => [Math.round(f.x), Math.round(f.y), now - f.t, f.k || 0]),
+    q: sim.squads.map(q => [Math.round(q.x), Math.round(q.y)])
+  };
+}
+
+// ---------- input ----------
+const keys = new Set();
+let sprintHeld = false;
+addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return;
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+  keys.add(e.code);
+});
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+const cvs = document.getElementById('game'), ctx = cvs.getContext('2d');
+const dpad = document.getElementById('dpad');
+const dpadBtns = {}; dpad.querySelectorAll('.dp').forEach(b => dpadBtns[b.dataset.d] = b);
+let dpadVec = [0, 0], dpadId = null;
+function dpadSet(e) {
+  const r = dpad.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  let x = 0, y = 0;
+  if (Math.hypot(dx, dy) > 16) {
+    if (dx > Math.abs(dy) * 0.45) x = 1; else if (dx < -Math.abs(dy) * 0.45) x = -1;
+    if (dy > Math.abs(dx) * 0.45) y = 1; else if (dy < -Math.abs(dx) * 0.45) y = -1;
+  }
+  dpadVec = [x, y];
+  dpadBtns.left.classList.toggle('on', x < 0); dpadBtns.right.classList.toggle('on', x > 0);
+  dpadBtns.up.classList.toggle('on', y < 0); dpadBtns.down.classList.toggle('on', y > 0);
+}
+dpad.addEventListener('pointerdown', e => { e.preventDefault(); dpadId = e.pointerId; try { dpad.setPointerCapture(e.pointerId); } catch (err) {} dpadSet(e); });
+dpad.addEventListener('pointermove', e => { if (e.pointerId === dpadId) dpadSet(e); });
+const dpadEnd = e => { if (e.pointerId !== dpadId) return; dpadId = null; dpadVec = [0, 0]; Object.values(dpadBtns).forEach(b => b.classList.remove('on')); };
+dpad.addEventListener('pointerup', dpadEnd); dpad.addEventListener('pointercancel', dpadEnd); dpad.addEventListener('lostpointercapture', dpadEnd);
+addEventListener('contextmenu', e => { if (document.body.classList.contains('touch')) e.preventDefault(); });
+const touchEl = document.getElementById('touchCtl');
+function setTouch(on) { document.body.classList.toggle('touch', on); touchEl.checked = on; try { localStorage.setItem('coffee-touch', on ? '1' : '0'); } catch (e) {} }
+(function initTouch() {
+  let saved = null; try { saved = localStorage.getItem('coffee-touch'); } catch (e) {}
+  const q = new URLSearchParams(location.search).get('mobile');
+  const coarse = window.matchMedia && matchMedia('(pointer:coarse)').matches;
+  setTouch(q === '1' ? true : q === '0' ? false : saved != null ? saved === '1' : coarse);
+})();
+touchEl.addEventListener('change', () => setTouch(touchEl.checked));
+const sprintBtn = document.getElementById('sprintBtn');
+sprintBtn.addEventListener('pointerdown', e => { e.preventDefault(); try { sprintBtn.setPointerCapture(e.pointerId); } catch (err) {} sprintHeld = true; sprintBtn.classList.add('on'); });
+const rel = () => { sprintHeld = false; sprintBtn.classList.remove('on'); };
+sprintBtn.addEventListener('pointerup', rel); sprintBtn.addEventListener('pointercancel', rel); sprintBtn.addEventListener('lostpointercapture', rel);
+function inputVec() {
+  let x = 0, y = 0;
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) x -= 1;
+  if (keys.has('KeyD') || keys.has('ArrowRight')) x += 1;
+  if (keys.has('KeyW') || keys.has('ArrowUp')) y -= 1;
+  if (keys.has('KeyS') || keys.has('ArrowDown')) y += 1;
+  if (dpadVec[0] || dpadVec[1]) { x = dpadVec[0]; y = dpadVec[1]; }
+  const L = Math.hypot(x, y); if (L > 1) { x /= L; y /= L; }
+  return [x, y];
+}
+const sprintKey = () => keys.has('ShiftLeft') || keys.has('ShiftRight') || sprintHeld;
+
+// ---------- local player ----------
+function myStatus() {
+  if (S.isHost && S.sim) { const p = S.sim.players[S.mySlot]; return p ? [p.st, Math.max(0, (p.until || 0) - Date.now()), p.bron ? 1 : 0, p.cst || 0, p.x, p.y] : [4, 0, 0, 0, 0, 0]; }
+  const s = S.snap && Array.isArray(S.snap.s) ? S.snap.s[S.mySlot] : null;
+  if (!Array.isArray(s)) return [0, 0];
+  const el = Date.now() - S.snapAt;
+  return [num(s[0], 0), Math.max(0, num(s[1], 0) - el), num(s[2], 0), num(s[3], 2), num(s[4], S.me.x), num(s[5], S.me.y)];
+}
+function endSprint() { const m = S.me; if (!m.sprinting && m.sprintLeft >= SPR_D) return; m.sprinting = false; m.sprintLeft = 0; m.fatUntil = Date.now() + FAT_MS; }
+function updateLocal(dt) {
+  const m = S.me, [st, rem, br, cst, sx, sy] = myStatus(), now = Date.now();
+  if (br !== (m.lastBron || 0)) {
+    if (br) toast('Ти підібрав бронь! Якщо спіймають, одразу відпустять.');
+    else if (st === 0 || st === 1) toast('Бронь врятувала: тебе відпустили, але її більше немає.');
+    m.lastBron = br;
+  }
+  if (st !== m.lastSt) {
+    if (st === 1) { m.sprinting = false; toast('Тебе збила машина! 3 секунди не рухаєшся'); }
+    if (st === 2) { m.sprinting = false; toast('Тебе спіймав ТЦК! Чекай на бус, повезуть на базу…'); }
+    if (st === 3) toast('Ти на каві! Перемога твоя.');
+    m.lastSt = st;
+  }
+  if (st === 3 || st === 4) return;
+  const [ix, iy] = inputVec();
+  if (st === 1) return;
+  if (st === 2) {
+    if (cst < 2) { m.x = sx; m.y = sy; m.placed = false; return; }
+    if (!m.placed) { [m.x, m.y] = BASE_SPOTS[S.mySlot]; m.placed = true; }
+    m.x = clamp(m.x + ix * V * 0.6 * dt, bx + 30, bx + 5 * T - 30);
+    m.y = clamp(m.y + iy * V * 0.6 * dt, by + 30, by + 4 * T - 30);
+    return;
+  }
+  const fat = now < m.fatUntil;
+  if (!fat && m.sprintLeft <= 0) m.sprintLeft = SPR_D;
+  const moving = ix || iy;
+  if (sprintKey() && moving && !fat && m.sprintLeft > 0 && !m.sprinting) m.sprinting = true;
+  if (m.sprinting && !sprintKey()) m.sprinting = false;
+  const sp = V * (m.sprinting ? SPR_M : (now < m.fatUntil ? FAT_M : 1));
+  const moved = slide(m, ix * sp * dt, iy * sp * dt, PR);
+  if (m.sprinting) { m.sprintLeft -= moved; if (m.sprintLeft <= 0) endSprint(); }
+}
+
+// ---------- room / lobby ----------
+const $ = id => document.getElementById(id);
+const nickEl = $('nick'); nickEl.value = S.nick;
+nickEl.addEventListener('input', () => { S.nick = nickEl.value.trim().slice(0, 16) || 'Гравець'; saveNick(S.nick); pushLobbyPresence(); });
+$('readyBtn').addEventListener('click', () => { S.ready = !S.ready; pushLobbyPresence(); renderLobby(); });
+$('startBtn').addEventListener('click', startMatch);
+$('toLobby').addEventListener('click', backToLobby);
+$('copyBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); toast('Лінк скопійовано. Надішли друзям!'); } catch (e) { toast(location.href); } });
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2600); }
+function note(msg, ms) { const n = $('note'); n.textContent = msg; n.classList.add('show'); clearTimeout(note.h); note.h = setTimeout(() => n.classList.remove('show'), ms || 3500); }
+function pushLobbyPresence() { if (S.room) S.room.presence({ nick: S.nick, ready: S.ready }).catch(() => {}); }
+function renderLobby() {
+  const rb = $('readyBtn'); rb.textContent = S.ready ? 'Готовий' : 'Я готовий'; rb.classList.toggle('on', S.ready);
+  const list = $('peers'); list.textContent = '';
+  if (!S.room) { $('net').textContent = S.net === 'offline' ? 'Онлайн-кімната недоступна, тож граєш з ботами.' : 'Підключення до кімнати…'; return; }
+  const peers = S.room.peers().filter(p => p.kind === 'viewer');
+  const busy = peers.find(p => p.presence && p.presence.m && p.presence.m.ph === 'play');
+  $('net').textContent = busy ? 'Зараз уже йде матч. Можна почати свій або зачекати.' : `У кімнаті: ${peers.length}. Хто натисне «Почати матч», той і хост.`;
+  for (const p of peers) {
+    const d = document.createElement('div'); d.className = 'peer';
+    const n = document.createElement('span'); n.textContent = (p.presence && typeof p.presence.nick === 'string' ? p.presence.nick.slice(0, 16) : 'Гравець') + (p.sameTab ? ' (ти)' : '');
+    const st = document.createElement('span'); const r = p.presence && p.presence.ready; st.className = 'st' + (r ? ' ready' : ''); st.textContent = r ? 'готовий' : 'не готовий';
+    d.append(n, st); list.append(d);
+  }
+}
+function startMatch() {
+  const bots = $('bots').checked;
+  let slots = [null, null, null, null], botSlots = [];
+  if (S.room && S.myLabel) {
+    const ready = S.room.peers().filter(p => p.kind === 'viewer' && !p.sameTab && p.presence && p.presence.ready).map(p => p.peer).sort();
+    const humans = [S.myLabel, ...ready].slice(0, 4);
+    humans.forEach((l, i) => slots[i] = l);
+    S.isHost = true;
+  } else { slots[0] = 'me'; S.myLabel = 'me'; S.isHost = true; }
+  if (bots) for (let i = 0; i < 4; i++) if (!slots[i]) botSlots.push(i);
+  const match = { id: 'm' + Math.random().toString(36).slice(2, 9), seed: Math.floor(Math.random() * 1e9), cafe: Math.floor(Math.random() * 3), t0: Date.now(), slots, bots: botSlots, ph: 'play', host: S.myLabel };
+  enterMatch(match, true);
+}
+function enterMatch(match, host) {
+  S.match = match; S.isHost = host; S.hostLabel = match.host;
+  S.mySlot = match.slots.indexOf(S.myLabel);
+  S.stat = renderStatic(match.cafe);
+  const mc = $('mini'); const mg = mc.getContext('2d'); mg.clearRect(0, 0, 340, 340); mg.drawImage(S.stat, 0, 0, 340, 340);
+  S.statMini = document.createElement('canvas'); S.statMini.width = 340; S.statMini.height = 340; S.statMini.getContext('2d').drawImage(S.stat, 0, 0, 340, 340);
+  const [x, y] = spawnOf(S.mySlot);
+  Object.assign(S.me, { x, y, sprinting: false, sprintLeft: SPR_D, fatUntil: 0, placed: false, lastSt: 0 });
+  S.snap = null; S.lastQ = -1; S.disp = { cars: [], peds: [], pl: [{}, {}, {}, {}] };
+  if (host) S.sim = newSim(match); else S.sim = null;
+  S.mode = 'play';
+  document.body.classList.add('playing');
+  $('lobby').hidden = true; $('endScreen').hidden = true; $('hud').hidden = false; $('sprintHud').hidden = false; $('mini').hidden = false;
+  note(`Сьогодні відкрита ${CAFE_NAMES[match.cafe]} — прямуй униз!`, 4500);
+  cam.init = false;
+}
+function backToLobby() {
+  if (S.match) S.ignored.add(S.match.id);
+  if (S.isHost && S.room) S.room.presence({ m: null, w: null, g: null }).catch(() => {});
+  else if (S.room) S.room.presence({ g: null }).catch(() => {});
+  document.body.classList.remove('playing');
+  S.mode = 'lobby'; S.match = null; S.sim = null; S.isHost = false; S.ready = false;
+  $('lobby').hidden = false; $('endScreen').hidden = true; $('hud').hidden = true; $('sprintHud').hidden = true; $('mini').hidden = true;
+  pushLobbyPresence(); renderLobby();
+}
+function showEnd(res) {
+  const fin = Array.isArray(res && res.fin) ? res.fin.length : 0, cap = Array.isArray(res && res.cap) ? res.cap.length : 0;
+  const tm = fmt(num(res && res.time, 0));
+  $('endTitle').textContent = fin > 0 ? 'Перемога!' : 'Поразка';
+  $('endText').textContent = fin > 0 ? `На каву дійшло: ${fin}. Спіймали: ${cap}. Час: ${tm}.` : `ТЦК забрав усіх. Час: ${tm}.`;
+  $('endScreen').hidden = false;
+}
+function scanRoom() {
+  if (!S.room) return;
+  const peers = S.room.peers();
+  if (!S.myLabel) { const me = peers.find(p => p.sameTab); if (me) S.myLabel = me.peer; }
+  if (S.mode === 'lobby' && S.myLabel) {
+    const cands = peers.filter(p => !p.sameTab && p.presence && p.presence.m && p.presence.m.ph === 'play' && Array.isArray(p.presence.m.slots) && p.presence.m.slots.includes(S.myLabel) && !S.ignored.has(p.presence.m.id) && p.presence.m.host === p.peer);
+    cands.sort((a, b) => num(a.presence.m.t0, 0) - num(b.presence.m.t0, 0));
+    if (cands.length) {
+      const m = cands[0].presence.m;
+      const match = { id: String(m.id), seed: 0, cafe: clamp(Math.floor(num(m.cafe, 1)), 0, 2), t0: num(m.t0, 0), slots: m.slots.slice(0, 4).map(s => typeof s === 'string' ? s : null), bots: Array.isArray(m.bots) ? m.bots.map(b => num(b, -1)) : [], ph: 'play', host: cands[0].peer };
+      enterMatch(match, false);
+    }
+  }
+}
+function wsRoom() {
+  return new Promise(res => {
+    let done = false; const finish = v => { if (!done) { done = true; res(v); } };
+    if (typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return finish(null);
+    const roomName = (new URLSearchParams(location.search).get('room') || 'main').slice(0, 32);
+    let ws;
+    try { ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?room=' + encodeURIComponent(roomName)); } catch (e) { return finish(null); }
+    const map = new Map(), subs = new Set(), local = {};
+    let me = null, snap = Object.freeze([]);
+    const rebuild = () => {
+      snap = Object.freeze([...map.values()].map(p => Object.freeze({ peer: p.peer, presence: p.presence, sameTab: p.peer === me, isMe: p.peer === me, kind: 'viewer', guest: false, by: null, updatedAt: p.u })));
+      subs.forEach(f => { try { f({ peers: snap }); } catch (e) {} });
+    };
+    const api = {
+      peers: () => snap,
+      onPeers: (f, onErr) => { subs.add(f); if (onErr) api._err = onErr; setTimeout(() => f({ peers: snap }), 0); return () => subs.delete(f); },
+      presence: patch => {
+        for (const k in patch) { if (patch[k] === null) delete local[k]; else local[k] = patch[k]; }
+        if (me && map.has(me)) { map.get(me).presence = Object.assign({}, local); rebuild(); }
+        if (ws.readyState === 1) ws.send(JSON.stringify({ t: 'p', patch }));
+        return Promise.resolve();
+      }
+    };
+    ws.onmessage = e => {
+      let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+      if (m.t === 'hello') {
+        me = String(m.you); map.clear();
+        for (const p of m.peers || []) map.set(String(p.peer), { peer: String(p.peer), presence: p.presence || {}, u: Date.now() });
+        map.set(me, { peer: me, presence: Object.assign({}, local), u: Date.now() });
+        if (Object.keys(local).length) ws.send(JSON.stringify({ t: 'p', patch: local }));
+        rebuild(); finish(api);
+      } else if (m.t === 'upd') {
+        const id = String(m.peer); if (id === me) return;
+        map.set(id, { peer: id, presence: m.presence || {}, u: Date.now() }); rebuild();
+      } else if (m.t === 'leave') { map.delete(String(m.peer)); rebuild(); }
+    };
+    ws.onerror = () => finish(null);
+    ws.onclose = () => { if (!done) return finish(null); map.clear(); if (me) map.set(me, { peer: me, presence: local, u: Date.now() }); rebuild(); if (api._err) api._err({ code: 'closed', message: 'closed' }); };
+    setTimeout(() => finish(null), 6000);
+  });
+}
+(async function initRoom() {
+  const cl = window.claude;
+  let room = null;
+  if (cl && typeof cl.use === 'function') { try { room = await cl.use('room'); } catch (e) { room = null; } }
+  else { room = await wsRoom(); if (room) S.ws = true; }
+  if (!room) { S.net = 'offline'; renderLobby(); return; }
+  S.room = room; S.net = 'online';
+  room.onPeers(() => { scanRoom(); if (S.mode === 'lobby') renderLobby(); }, () => { toast('Зв\'язок з кімнатою втрачено'); });
+  if (S.ws) $('copyBtn').hidden = false;
+  pushLobbyPresence(); renderLobby();
+})();
+renderLobby();
+
+// ---------- network tick ----------
+let netT = 0;
+function netTick(dt) {
+  if (!S.room || S.mode !== 'play') return;
+  netT += dt;
+  if (netT < (S.isHost ? 0.08 : 0.066)) return;
+  netT = 0;
+  const now = Date.now();
+  const g = { m: S.match.id, x: Math.round(S.me.x), y: Math.round(S.me.y), sp: S.me.sprinting ? 1 : 0, fa: now < S.me.fatUntil ? 1 : 0, pl: S.me.placed ? 1 : 0 };
+  if (S.isHost) {
+    const m = S.match;
+    S.room.presence({ m: { id: m.id, cafe: m.cafe, t0: m.t0, slots: m.slots, bots: m.bots, ph: m.ph, host: m.host, res: m.res || null }, w: packWorld(), g }).catch(() => {});
+  } else S.room.presence({ g }).catch(() => {});
+}
+function clientRead() {
+  if (!S.room || S.isHost || S.mode === 'lobby') return;
+  const hp = S.room.peers().find(p => p.peer === S.hostLabel);
+  if (!hp || !hp.presence || !hp.presence.m || hp.presence.m.id !== S.match.id) {
+    if (S.mode === 'play') { toast('Хост вийшов із матчу'); backToLobby(); }
+    return;
+  }
+  const m = hp.presence.m;
+  if (m.ph === 'end' && S.mode === 'play') { S.mode = 'end'; showEnd(m.res); }
+  const w = hp.presence.w;
+  if (w && num(w.n, -1) !== S.lastQ) { S.snap = w; S.snapAt = Date.now(); S.lastQ = num(w.n, -1); }
+}
+
+// ---------- render ----------
+const cam = { x: 0, y: 0, s: 1, init: false };
+let dpr = 1;
+function resize() { dpr = Math.min(2, devicePixelRatio || 1); cvs.width = Math.round(innerWidth * dpr); cvs.height = Math.round(innerHeight * dpr); }
+addEventListener('resize', resize); resize();
+function lerpArr(dispArr, src, k) {
+  if (!Array.isArray(src)) return dispArr;
+  const out = [];
+  for (let i = 0; i < src.length && i < 64; i++) {
+    const a = src[i]; if (!Array.isArray(a)) continue;
+    const x = num(a[0], 0), y = num(a[1], 0);
+    const d = dispArr[i];
+    if (!d || Math.hypot(d.x - x, d.y - y) > 200) out.push({ x, y, o: num(a[2], 0), r: num(a[3] !== undefined ? a[3] : a[2], 0), raw: a });
+    else out.push({ x: d.x + (x - d.x) * k, y: d.y + (y - d.y) * k, o: num(a[2], 0), r: num(a[3] !== undefined ? a[3] : a[2], 0), raw: a });
+  }
+  return out;
+}
+function worldView(dt) {
+  // returns {cars:[{x,y,o,rev}], peds:[{x,y,rev}], players:[{slot,x,y,st,sp,fa,nick}], fx:[{x,y,age}]}
+  const now = Date.now();
+  const players = [];
+  if (S.isHost && S.sim) {
+    const sim = S.sim;
+    const cars = sim.cars.map((c, i) => ({ x: c.x, y: c.y, o: carO(c), rev: c.st !== 'n', chase: c.st === 'chase', i }));
+    const peds = sim.peds.map((e, i) => ({ x: e.x, y: e.y, rev: e.st !== 'n', chase: e.st === 'chase' || e.st === 'escort', i }));
+    for (const p of sim.players) {
+      if (!p) continue;
+      const mine = p.slot === S.mySlot;
+      let x = mine ? S.me.x : p.x, y = mine ? S.me.y : p.y;
+      if (!mine && !p.bot) { const d = S.disp.pl[p.slot]; d.x = d.x == null ? x : d.x + (x - d.x) * Math.min(1, dt * 12); d.y = d.y == null ? y : d.y + (y - d.y) * Math.min(1, dt * 12); x = d.x; y = d.y; }
+      if (p.st === 2 && p.cst === 1) continue;
+      if (mine && p.st === 2 && p.cst < 2) { x = p.x; y = p.y; }
+      players.push({ slot: p.slot, x, y, st: p.st, br: p.bron, sp: mine ? S.me.sprinting : p.sp, fa: mine ? now < S.me.fatUntil : p.fa, nick: nickOf(p.slot) });
+    }
+    return { cars, peds, players, leaf: sim.leaf, sq: sim.squads.map(q => ({ x: q.x, y: q.y })), fx: sim.fx.map(f => ({ x: f.x, y: f.y, age: now - f.t, k: f.k || 0 })) };
+  }
+  const w = S.snap || {};
+  const k = Math.min(1, dt * 12);
+  S.disp.cars = lerpArr(S.disp.cars, w.c, k);
+  S.disp.peds = lerpArr(S.disp.peds, w.p, k);
+  const cars = S.disp.cars.map((c, i) => ({ x: c.x, y: c.y, o: clamp(Math.floor(num(c.raw[2], 0)), 0, 3), rev: num(c.raw[3], 0) > 0, chase: false, i }));
+  const peds = S.disp.peds.map((e, i) => ({ x: e.x, y: e.y, rev: num(e.raw[2], 0) > 0, chase: num(e.raw[2], 0) === 2, i }));
+  const stat = Array.isArray(w.s) ? w.s : [];
+  const bots = {}; if (Array.isArray(w.b)) for (const b of w.b) if (Array.isArray(b)) bots[num(b[0], -1)] = b;
+  const peers = S.room ? S.room.peers() : [];
+  for (let s = 0; s < 4; s++) {
+    const isBot = S.match.bots.includes(s), label = S.match.slots[s];
+    if (!isBot && !label) continue;
+    const st = Array.isArray(stat[s]) ? num(stat[s][0], 0) : 0, br = Array.isArray(stat[s]) ? num(stat[s][2], 0) > 0 : false, cst = Array.isArray(stat[s]) ? num(stat[s][3], 2) : 2;
+    if (st === 2 && cst === 1) continue;
+    let x, y, sp = false, fa = false;
+    if (s === S.mySlot) { x = S.me.x; y = S.me.y; sp = S.me.sprinting; fa = now < S.me.fatUntil; }
+    else if (isBot) { const b = bots[s]; if (!b) continue; x = num(b[1], 0); y = num(b[2], 0); sp = !!b[3]; fa = !!b[4]; }
+    else if (st === 2 && cst < 2) { x = num(stat[s][4], 0); y = num(stat[s][5], 0); }
+    else { const p = peers.find(q => q.peer === label); const g = p && p.presence && p.presence.g; if (!g) continue; x = num(g.x, 0); y = num(g.y, 0); sp = !!g.sp; fa = !!g.fa; }
+    if (s !== S.mySlot) { const d = S.disp.pl[s]; if (d.x == null || Math.hypot(d.x - x, d.y - y) > 200) { d.x = x; d.y = y; } else { d.x += (x - d.x) * k; d.y += (y - d.y) * k; } x = d.x; y = d.y; }
+    players.push({ slot: s, x, y, st, br, sp, fa, nick: nickOf(s) });
+  }
+  const el = now - S.snapAt;
+  const fx = Array.isArray(w.f) ? w.f.filter(Array.isArray).map(f => ({ x: num(f[0], 0), y: num(f[1], 0), age: num(f[2], 0) + el, k: num(f[3], 0) })) : [];
+  const leaf = Array.isArray(w.l) ? { x: num(w.l[0], 0), y: num(w.l[1], 0) } : null;
+  S.disp.sq = lerpArr(S.disp.sq || [], w.q, k);
+  return { cars, peds, players, leaf, sq: S.disp.sq.map(q => ({ x: q.x, y: q.y })), fx };
+}
+function nickOf(s) {
+  if (!S.match) return '';
+  if (S.match.bots.includes(s)) return 'Бот ' + (s + 1);
+  const label = S.match.slots[s];
+  if (label === S.myLabel) return S.nick;
+  const p = S.room && S.room.peers().find(q => q.peer === label);
+  const n = p && p.presence && p.presence.nick;
+  return typeof n === 'string' ? n.slice(0, 16) : 'Гравець ' + (s + 1);
+}
+function drawCar(c) {
+  const ang = [0, Math.PI, Math.PI / 2, -Math.PI / 2][c.o] || 0;
+  ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(ang);
+  ctx.fillStyle = 'rgba(253,230,138,.16)'; ctx.beginPath(); ctx.moveTo(32, -11); ctx.lineTo(84, -26); ctx.lineTo(84, 26); ctx.lineTo(32, 11); ctx.closePath(); ctx.fill();
+  if (c.rev) { ctx.shadowColor = GREEN; ctx.shadowBlur = 20; }
+  ctx.fillStyle = c.rev ? GREEN : CARC[c.i % 5]; rr(ctx, -32, -17, 64, 34, 8); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(29,33,50,.22)'; rr(ctx, -22, -12, 26, 24, 4); ctx.fill();
+  ctx.fillStyle = 'rgba(169,180,204,.85)'; rr(ctx, 10, -12, 14, 24, 3); ctx.fill();
+  ctx.fillStyle = '#F87171'; ctx.fillRect(-32, -14, 3, 7); ctx.fillRect(-32, 7, 3, 7);
+  ctx.restore();
+  if (c.rev) {
+    ctx.fillStyle = GREEN; rr(ctx, c.x - 30, c.y - 48, 60, 24, 12); ctx.fill();
+    ctx.fillStyle = '#FFFFFF'; ctx.font = '800 14px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('ТЦК', c.x, c.y - 31);
+  }
+}
+function drawPed(e) {
+  if (e.rev) { ctx.save(); ctx.shadowColor = GREEN; ctx.shadowBlur = 16; }
+  ctx.fillStyle = e.rev ? GREEN : PEDC[e.i % 6];
+  ctx.beginPath(); ctx.ellipse(e.x, e.y, 12, 8, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = e.rev ? '#1F5E3A' : '#3A3024'; ctx.beginPath(); ctx.arc(e.x, e.y, 6, 0, 7); ctx.fill();
+  if (e.rev) ctx.restore();
+  if (e.chase) { ctx.fillStyle = '#BFF3D2'; ctx.font = '800 18px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', e.x, e.y - 16); }
+}
+const lastPos = [{}, {}, {}, {}];
+function drawPlayer(p, t) {
+  const col = PC[p.slot];
+  const lp = lastPos[p.slot]; const vx = p.x - (lp.x ?? p.x), vy = p.y - (lp.y ?? p.y); const vl = Math.hypot(vx, vy);
+  if (vl > 0.5) { lp.dx = vx / vl; lp.dy = vy / vl; }
+  lp.x = p.x; lp.y = p.y;
+  if (p.st === 3) ctx.globalAlpha = 0.55;
+  if (p.sp && lp.dx != null) {
+    ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (const o of [-10, 0, 10]) { const nx = -lp.dy * o, ny = lp.dx * o; ctx.beginPath(); ctx.moveTo(p.x - lp.dx * 22 + nx, p.y - lp.dy * 22 + ny); ctx.lineTo(p.x - lp.dx * 40 + nx, p.y - lp.dy * 40 + ny); ctx.stroke(); }
+  }
+  ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 14;
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, PR + 1, 0, 7); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.arc(p.x, p.y, PR + 1, 0, 7); ctx.stroke();
+  ctx.fillStyle = '#1D2132'; ctx.font = '800 15px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(String(p.slot + 1), p.x, p.y + 5);
+  ctx.fillStyle = 'rgba(233,228,212,.9)'; ctx.font = '700 12px Manrope, sans-serif'; ctx.fillText(p.nick + (p.slot === S.mySlot ? ' (ти)' : ''), p.x, p.y - 24);
+  if (p.br) drawPaper(p.x + 20, p.y + 8, 0.55, true);
+  if (p.st === 1) { for (let k = 0; k < 3; k++) { const a = t / 300 + k * 2.1; ctx.fillStyle = '#F5D37A'; ctx.beginPath(); ctx.arc(p.x + Math.cos(a) * 20, p.y - 6 + Math.sin(a) * 8, 4, 0, 7); ctx.fill(); } }
+  if (p.fa && p.st === 0) { ctx.fillStyle = '#9BD3F5'; for (const o of [-18, 18]) { const yy = p.y - 12 + ((t / 12 + o * 3) % 14); ctx.beginPath(); ctx.moveTo(p.x + o, yy - 5); ctx.quadraticCurveTo(p.x + o + 4, yy + 2, p.x + o, yy + 3); ctx.quadraticCurveTo(p.x + o - 4, yy + 2, p.x + o, yy - 5); ctx.fill(); } }
+  ctx.globalAlpha = 1;
+}
+function drawSquad(q, t) {
+  const offs = [[-14, -6], [14, -6], [0, 12]];
+  offs.forEach(([dx, dy], k) => {
+    const bob = Math.sin(t / 90 + k * 2) * 2;
+    ctx.save(); ctx.shadowColor = GREEN; ctx.shadowBlur = 14;
+    ctx.fillStyle = GREEN; ctx.beginPath(); ctx.ellipse(q.x + dx, q.y + dy + bob, 11, 7.5, 0, 0, 7); ctx.fill(); ctx.restore();
+    ctx.fillStyle = '#1F5E3A'; ctx.beginPath(); ctx.arc(q.x + dx, q.y + dy + bob, 5.5, 0, 7); ctx.fill();
+  });
+  ctx.fillStyle = '#BFF3D2'; ctx.font = '800 18px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', q.x, q.y - 20);
+}
+function drawPaper(x, y, s, glow) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  if (glow) { ctx.shadowColor = '#FDE68A'; ctx.shadowBlur = 22; }
+  ctx.fillStyle = '#FFF8E6'; ctx.beginPath(); ctx.moveTo(-13, -17); ctx.lineTo(6, -17); ctx.lineTo(13, -10); ctx.lineTo(13, 17); ctx.lineTo(-13, 17); ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#E8D9B5'; ctx.beginPath(); ctx.moveTo(6, -17); ctx.lineTo(6, -10); ctx.lineTo(13, -10); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#B9A77E'; ctx.lineWidth = 2; for (const yy of [-4, 2, 8]) { ctx.beginPath(); ctx.moveTo(-8, yy); ctx.lineTo(8, yy); ctx.stroke(); }
+  ctx.strokeStyle = '#3A7CA5'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(4, 12, 4, 0, 7); ctx.stroke();
+  ctx.restore();
+}
+function drawLeaf(l, t) {
+  const bob = Math.sin(t / 300) * 4;
+  const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, 46); g.addColorStop(0, 'rgba(253,230,138,.35)'); g.addColorStop(1, 'rgba(253,230,138,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(l.x, l.y, 46, 0, 7); ctx.fill();
+  drawPaper(l.x, l.y + bob, 1, true);
+  ctx.fillStyle = '#FDE68A'; ctx.font = '800 13px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('БРОНЬ', l.x, l.y + bob - 24);
+}
+function drawFx(f) {
+  if (f.k === 1) {
+    if (f.age > 1600) return;
+    const a = 1 - f.age / 1600;
+    ctx.strokeStyle = `rgba(253,230,138,${a})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, 20 + f.age / 12, 0, 7); ctx.stroke();
+    ctx.fillStyle = `rgba(253,230,138,${a})`; ctx.font = '800 18px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('БРОНЬ! ВІДПУСТИЛИ', f.x, f.y - 40 - f.age / 40);
+    return;
+  }
+  if (f.k === 2) {
+    if (f.age > 900) return;
+    const a = 1 - f.age / 900;
+    ctx.strokeStyle = `rgba(253,230,138,${a})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, 16 + f.age / 15, 0, 7); ctx.stroke();
+    return;
+  }
+  if (f.age > CAP_MS) return;
+  for (const [dx, dy] of [[-26, -4], [26, -4], [0, 24]]) {
+    ctx.save(); ctx.shadowColor = GREEN; ctx.shadowBlur = 14; ctx.fillStyle = GREEN; ctx.beginPath(); ctx.arc(f.x + dx, f.y + dy, 11, 0, 7); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(f.x + dx, f.y + dy, 11, 0, 7); ctx.stroke();
+  }
+}
+function fmt(ms) { const s = Math.floor(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+const ST_TXT = ['у дорозі', 'збитий', 'у ТЦК', 'на каві', 'вийшов'];
+let hudT = 0;
+function updateHud(view, dt) {
+  hudT += dt; if (hudT < 0.15) return; hudT = 0;
+  const chips = $('chips'); chips.textContent = '';
+  for (const p of view.players) {
+    const c = document.createElement('div'); c.className = 'chip' + (p.slot === S.mySlot ? ' me' : '');
+    const d = document.createElement('span'); d.className = 'dot'; d.style.background = PC[p.slot];
+    const tx2 = document.createElement('span'); tx2.textContent = `${p.nick} · ${p.st === 0 && p.sp ? 'біжить' : p.st === 0 && p.fa ? 'втомився' : ST_TXT[p.st] || ''}${p.br ? ' · бронь' : ''}`;
+    c.append(d, tx2); chips.append(c);
+  }
+  let el = 0;
+  if (S.isHost && S.sim) el = (S.sim.end || Date.now()) - S.sim.t0; else if (S.snap) el = num(S.snap.t, 0) + (S.mode === 'play' ? Date.now() - S.snapAt : 0);
+  $('timer').textContent = fmt(el);
+  const m = S.me, now = Date.now(), fat = now < m.fatUntil;
+  const segs = $('segs'); if (!segs.children.length) for (let i = 0; i < 8; i++) { const s = document.createElement('span'); s.className = 'seg'; segs.append(s); }
+  const left = fat ? 0 : Math.ceil(Math.max(0, m.sprintLeft) / T);
+  [...segs.children].forEach((s, i) => s.classList.toggle('on', i < left));
+  sprintBtn.classList.toggle('tired', fat); sprintBtn.textContent = fat ? Math.ceil((m.fatUntil - now) / 1000) + ' с' : 'БІГ';
+  $('sprintLbl').textContent = fat ? `Втома ${Math.ceil((m.fatUntil - now) / 1000)} с` : (m.sprinting ? `Біг ${left}/8` : `Біг ${left}/8`);
+}
+function drawMini(view) {
+  const mc = $('mini'), g = mc.getContext('2d');
+  g.drawImage(S.statMini, 0, 0);
+  const k = 340 / MW;
+  if (view.leaf) { g.fillStyle = '#FDE68A'; g.strokeStyle = '#1D2132'; g.lineWidth = 2; g.fillRect(view.leaf.x * k - 7, view.leaf.y * k - 9, 14, 18); g.strokeRect(view.leaf.x * k - 7, view.leaf.y * k - 9, 14, 18); }
+  for (const p of view.players) {
+    g.fillStyle = PC[p.slot]; g.strokeStyle = p.slot === S.mySlot ? '#FFFFFF' : '#1D2132'; g.lineWidth = 3;
+    g.beginPath(); g.arc(p.x * k, p.y * k, p.slot === S.mySlot ? 9 : 7, 0, 7); g.fill(); g.stroke();
+  }
+}
+function drawGuide(view) {
+  if (!S.match) return;
+  const R = cafeRect(S.match.cafe), gx = R.x + R.w / 2, gy = R.y + R.h / 2;
+  const sx = (gx - cam.x) * cam.s, sy = (gy - cam.y) * cam.s, vw = innerWidth, vh = innerHeight;
+  if (sx > 0 && sy > 0 && sx < vw && sy < vh) return;
+  const cx = vw / 2, cy = vh / 2, a = Math.atan2(sy - cy, sx - cx);
+  const r = Math.min(vw, vh) / 2 - 60;
+  const ax = cx + Math.cos(a) * Math.min(r * 1.4, vw / 2 - 40), ay = cy + Math.sin(a) * Math.min(r, vh / 2 - 90);
+  ctx.save(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.translate(ax, ay); ctx.rotate(a);
+  ctx.fillStyle = 'rgba(244,160,122,.9)'; ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-10, -11); ctx.lineTo(-5, 0); ctx.lineTo(-10, 11); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function render(dt, t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#161A28'; ctx.fillRect(0, 0, cvs.width, cvs.height);
+  if (S.mode === 'lobby' || !S.stat) { drawLobbyBg(t); return; }
+  const view = worldView(dt);
+  const vw = innerWidth, vh = innerHeight;
+  cam.s = document.body.classList.contains('touch') ? clamp(Math.min(vw, vh) / (7.5 * T), 0.55, 1.25) : clamp(Math.min(vw / (14 * T), vh / (10 * T)), 0.45, 1.25);
+  const tw = vw / cam.s, th = vh / cam.s;
+  let fx = S.me.x - tw / 2, fy = S.me.y - th / 2;
+  fx = tw >= MW ? (MW - tw) / 2 : clamp(fx, 0, MW - tw); fy = th >= MH ? (MH - th) / 2 : clamp(fy, -60 / cam.s, MH - th + 40 / cam.s);
+  if (!cam.init) { cam.x = fx; cam.y = fy; cam.init = true; } else { cam.x += (fx - cam.x) * Math.min(1, dt * 8); cam.y += (fy - cam.y) * Math.min(1, dt * 8); }
+  let shake = 0; const [st] = myStatus(); if (st === 1) shake = 3;
+  ctx.setTransform(dpr * cam.s, 0, 0, dpr * cam.s, -(cam.x + (Math.random() - .5) * shake) * dpr * cam.s, -(cam.y + (Math.random() - .5) * shake) * dpr * cam.s);
+  const sx = clamp(Math.floor(cam.x), 0, MW), sy = clamp(Math.floor(cam.y), 0, MH), sw = Math.min(MW - sx, Math.ceil(tw) + 2), sh = Math.min(MH - sy, Math.ceil(th) + 2);
+  if (sw > 0 && sh > 0) ctx.drawImage(S.stat, sx, sy, sw, sh, sx, sy, sw, sh);
+  for (const e of view.peds) drawPed(e);
+  for (const c of view.cars) drawCar(c);
+  if (view.leaf) drawLeaf(view.leaf, t);
+  for (const q of view.sq) drawSquad(q, t);
+  for (const f of view.fx) drawFx(f);
+  const ord = view.players.slice().sort((a, b) => (a.slot === S.mySlot) - (b.slot === S.mySlot));
+  for (const p of ord) drawPlayer(p, t);
+  drawGuide(view);
+  updateHud(view, dt);
+  drawMini(view);
+}
+let bgStat = null;
+function drawLobbyBg(t) {
+  if (!bgStat) bgStat = renderStatic(1);
+  const s = Math.max(innerWidth / MW, innerHeight / MH) * 1.15;
+  const ox = (innerWidth - MW * s) / 2 + Math.sin(t / 6000) * 40, oy = (innerHeight - MH * s) / 2 + Math.cos(t / 7000) * 40;
+  ctx.setTransform(dpr * s, 0, 0, dpr * s, ox * dpr, oy * dpr);
+  ctx.globalAlpha = 0.55; ctx.drawImage(bgStat, 0, 0); ctx.globalAlpha = 1;
+}
+
+// ---------- loop ----------
+let last = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - last) / 1000); last = t;
+  if (S.mode !== 'lobby' && S.match) {
+    clientRead();
+    if (S.mode === 'play' || S.mode === 'end') {
+      if (S.mode === 'play') updateLocal(dt);
+      if (S.isHost && S.sim) {
+        hostTick(dt);
+        if (S.match.ph === 'end' && S.mode === 'play') { S.mode = 'end'; showEnd(S.match.res); }
+      }
+      netTick(dt);
+      if (S.mode === 'end' && S.isHost && S.room) { netT += dt; if (netT > 0.3) { netT = 0; const m = S.match; S.room.presence({ m: { id: m.id, cafe: m.cafe, t0: m.t0, slots: m.slots, bots: m.bots, ph: m.ph, host: m.host, res: m.res || null } }).catch(() => {}); } }
+    }
+  }
+  render(dt, t);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
