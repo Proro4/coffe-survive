@@ -95,6 +95,9 @@ body{-webkit-touch-callout:none}
 .mgbtns{display:flex;gap:10px;justify-content:center}
 .mgbtns button{width:68px;height:68px;padding:0;display:flex;align-items:center;justify-content:center;touch-action:none}
 .mgbtns button svg{width:30px;height:30px}
+.spec{position:absolute;left:50%;top:60px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:6px 8px 6px 16px;background:rgba(34,39,58,.92);border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
+.spec button{min-height:36px;padding:6px 14px;font-size:13px}
+body.touch .spec{top:auto;bottom:calc(230px + env(safe-area-inset-bottom,0px))}
 .toast{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);padding:10px 16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;font-weight:700;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center}
 .toast.show{opacity:1}
 </style>
@@ -114,6 +117,7 @@ body{-webkit-touch-callout:none}
   </div>
   <canvas id="mini" width="340" height="340" hidden></canvas>
   <div class="arrow-note" id="note"></div>
+  <div class="spec" id="spec" hidden><span>Спостерігаєш: <b id="specName"></b></span><button type="button" id="specNext">Наступний</button></div>
   <div class="dpad" id="dpad" role="group" aria-label="Кнопки руху">
     <button type="button" class="dp up" data-d="up" aria-label="Вгору" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(0deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
     <button type="button" class="dp left" data-d="left" aria-label="Вліво" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(-90deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
@@ -146,7 +150,8 @@ body{-webkit-touch-callout:none}
           <li>WASD або стрілки: рух. Shift: біг ×1.5. Запасу вистачає на 8 клітинок, його можна витрачати частинами. Коли запас закінчиться, 10 с втоми.</li>
           <li>На телефоні: хрестовина зліва (можна вести пальцем по діагоналі), кнопка «БІГ» праворуч.</li>
           <li>На зебрі машини зупиняються. Поза нею можуть збити.</li>
-          <li>Буси ТЦК (їх троє) помічають за 3 клітинки й відстають після 5. Працівники (теж троє) помічають за 2 й відстають після 4.</li>
+          <li>Буси ТЦК (їх троє) помічають за 3 клітинки й відстають після 5. Працівники (їх четверо) помічають за 3 й відстають після 4.</li>
+          <li>Дійшов на каву: сідаєш за столик, а за 3 секунди камера перемикається на тих, хто ще грає (Tab або кнопка «Наступний»).</li>
           <li>Карта щоматчу трохи інша: дороги, проходи дворами й дерева змінюються. Прохід до кав'ярні є завжди, але частина провулків веде в тупик.</li>
           <li>На базі ТЦК у правій стіні є тріщина «А». Підійди до неї й за 5 секунд повтори 6 стрілок: вийде, опинишся по той бік стіни. Спроба одна на матч, і почати її треба протягом 10 секунд після того, як тебе привезли. Поки хтось на базі ще може спробувати, матч не закінчується.</li>
           <li>Якщо ТЦК женеться за кимось, а ближче проходить інший гравець, він перемикається на нього.</li>
@@ -200,7 +205,7 @@ const CARC = ['#D7D9E3', '#8C93B0', '#B98A9E', '#9CB8B0', '#E0C49A'];
 const PEDC = ['#D4B8A8', '#A8B8D4', '#C4D4A8', '#D4A8C0', '#B8D4D0', '#D8C89A'];
 const GREEN = '#34A866';
 const V = 180, SPR_M = 1.5, SPR_D = 8 * T, FAT_MS = 10000, FAT_M = 1 / 1.5, TCC_V = 0.8 * V;
-const VAN_SEE = 3 * T, VAN_LOSE = 5 * T, WK_SEE = 2 * T, WK_LOSE = 4 * T;
+const VAN_SEE = 3 * T, VAN_LOSE = 5 * T, WK_SEE = 3 * T, WK_LOSE = 4 * T;
 const HIDE_MS = 5000, STUN_MS = 3000, IMMUNE_MS = 1500, CAP_MS = 1400, GRACE_MS = 3000;
 const PR = 14;
 const ESC_WINDOW = 10000;
@@ -568,8 +573,9 @@ function renderStatic(cafeIdx, env) {
     g.fillStyle = '#3B2A20'; rr(g, cx - 12, Y + Hd - 6, 24, 10, 2); g.fill();
     for (const tx0 of [X + 22, X + Wd - 22]) {
       const ty0 = Y + Hd + 34;
-      g.fillStyle = '#6B4B3A'; g.beginPath(); g.arc(tx0 - 13, ty0, 5, 0, 7); g.arc(tx0 + 13, ty0, 5, 0, 7); g.fill();
-      g.fillStyle = open ? '#EDE0CC' : '#8A90A8'; g.beginPath(); g.arc(tx0, ty0, 10, 0, 7); g.fill();
+      g.fillStyle = '#6B4B3A'; g.beginPath(); g.arc(tx0 - 22, ty0, 7, 0, 7); g.fill(); g.beginPath(); g.arc(tx0 + 22, ty0, 7, 0, 7); g.fill();
+      g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.arc(tx0 + 2, ty0 + 3, 12, 0, 7); g.fill();
+      g.fillStyle = open ? '#EDE0CC' : '#8A90A8'; g.beginPath(); g.arc(tx0, ty0, 12, 0, 7); g.fill();
       if (open) { g.fillStyle = '#6B4B3A'; g.beginPath(); g.arc(tx0 + 3, ty0 - 2, 2.5, 0, 7); g.fill(); }
     }
     g.fillStyle = open ? '#F4A07A' : '#6B7090'; g.font = '800 12px Manrope, sans-serif'; g.fillText(open ? 'ВІДЧИНЕНО' : 'зачинено', cx, Y + Hd + 60);
@@ -619,7 +625,7 @@ function newSim(match) {
   for (let i = walkTiles.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [walkTiles[i], walkTiles[j]] = [walkTiles[j], walkTiles[i]]; }
   const peds = walkTiles.slice(0, 40).map(([x, y], i) => ({ i, x: x * T + 30, y: y * T + 30, tx: x, ty: y, px: x, py: y, spd: 45 + R() * 30, st: 'n', until: 0, tgt: -1, next: null, pathT: 0, tcc: false }));
   const wc = peds.filter(p => p.ty >= 8);
-  for (let k = 0; k < 3 && wc.length; k++) { const j = Math.floor(R() * wc.length); wc.splice(j, 1)[0].tcc = true; }
+  for (let k = 0; k < 4 && wc.length; k++) { const j = Math.floor(R() * wc.length); wc.splice(j, 1)[0].tcc = true; }
   const cr = CAFES[match.cafe];
   const goals = new Set();
   for (let y = cr[1]; y < cr[1] + cr[3]; y++) for (let x = cr[0]; x < cr[0] + cr[2]; x++) for (const [dx, dy] of NB) {
@@ -703,6 +709,12 @@ function applyEscape(p, ok, now) {
   if (!ok) return;
   p.st = 0; p.cst = 0; p.x = ESC_OUT.x; p.y = ESC_OUT.y; p.safe = now + 3000; p.escAt = now; p.immune = now + 1500;
   S.sim.fx.push({ x: p.x, y: p.y, t: now, k: 3 });
+}
+// місця за столиками перед відкритою кав'ярнею: [x, y, куди дивиться]
+function seatOf(slot, cafeIdx) {
+  const [c, r, w, h] = CAFES[cafeIdx], X = c * T, Y = r * T, Wd = w * T, Hd = h * T, ty0 = Y + Hd + 34;
+  const tx0 = slot < 2 ? X + 22 : X + Wd - 22, left = slot % 2 === 0;
+  return [tx0 + (left ? -24 : 24), ty0, left ? 0 : Math.PI];
 }
 function placeInBase(p) { p.cst = 2; [p.x, p.y] = BASE_SPOTS[p.slot]; p.baseAt = Date.now(); if (p.bot) p.escUsed = true; }
 function capture(p, e, now) {
@@ -981,7 +993,7 @@ function hostTick(dt) {
   squadsTick(dt, now);
   pedsTick(dt, now);
   const R = cafeRect(S.match.cafe);
-  for (const p of sim.players) if (act(p) && touchesRect(p, R, 6)) { p.st = 3; p.sp = false; if (p.bron) { p.bron = false; sim.leaf = randomLeafSpot(null, sim.players); } }
+  for (const p of sim.players) if (act(p) && touchesRect(p, R, 6)) { p.st = 3; p.sp = false; [p.x, p.y] = seatOf(p.slot, S.match.cafe); if (p.bron) { p.bron = false; sim.leaf = randomLeafSpot(null, sim.players); } }
   if (sim.leaf) for (const p of sim.players) if (act(p) && !p.bron && dist(p, sim.leaf) < 30) { p.bron = true; sim.leaf = null; sim.fx.push({ x: p.x, y: p.y, t: now, k: 2 }); break; }
   for (const p of sim.players) if (p && p.bron && (p.st === 2 || p.st === 4)) { p.bron = false; sim.leaf = randomLeafSpot(null, sim.players); }
   sim.fx = sim.fx.filter(f => now - f.t < CAP_MS + 300);
@@ -1064,6 +1076,8 @@ function inputVec() {
   const L = Math.hypot(x, y); if (L > 1) { x /= L; y /= L; }
   return [x, y];
 }
+document.getElementById('specNext').addEventListener('click', () => { SPEC.idx++; });
+addEventListener('keydown', e => { if (e.code === 'Tab' && S.mode !== 'lobby' && !document.getElementById('spec').hidden) { e.preventDefault(); SPEC.idx++; } });
 const sprintKey = () => keys.has('ShiftLeft') || keys.has('ShiftRight') || sprintHeld;
 
 // ---------- escape minigame ----------
@@ -1147,7 +1161,7 @@ function updateLocal(dt) {
     if (st === 0 && m.lastSt === 1) m.limmune = Math.max(m.limmune || 0, now + IMMUNE_MS);
     if (st === 2) { m.sprinting = false; m.escOk = false; toast('Тебе спіймав ТЦК! Чекай на бус, повезуть на базу…'); }
     if (st === 0 && m.lastSt === 2) { [m.x, m.y] = [ESC_OUT.x, ESC_OUT.y]; m.placed = false; m.escOk = false; toast('Ти втік із ТЦК! Біжи на каву, поки не помітили.'); }
-    if (st === 3) toast('Ти на каві! Перемога твоя.');
+    if (st === 3) { [m.x, m.y] = seatOf(S.mySlot, S.match.cafe); m.sprinting = false; toast('Ти на каві! Сідай за столик.'); }
     m.lastSt = st;
   }
   if (st === 3 || st === 4) return;
@@ -1225,7 +1239,8 @@ function enterMatch(match, host) {
   const mc = $('mini'); const mg = mc.getContext('2d'); mg.clearRect(0, 0, 340, 340); mg.drawImage(S.stat, 0, 0, 340, 340);
   S.statMini = document.createElement('canvas'); S.statMini.width = 340; S.statMini.height = 340; S.statMini.getContext('2d').drawImage(S.stat, 0, 0, 340, 340);
   const [x, y] = spawnOf(S.mySlot);
-  Object.assign(S.me, { x, y, sprinting: false, sprintLeft: SPR_D, fatUntil: 0, placed: false, lastSt: 0, escTried: false, escOk: false, lastBron: 0, hitN: 0, capN: 0, lstunUntil: 0, limmune: 0, lastHitAt: 0, lastCapRep: 0, placedAt: 0 });
+  Object.assign(S.me, { x, y, sprinting: false, sprintLeft: SPR_D, fatUntil: 0, placed: false, lastSt: 0, escTried: false, escOk: false, lastBron: 0, hitN: 0, capN: 0, lstunUntil: 0, limmune: 0, lastHitAt: 0, lastCapRep: 0, placedAt: 0, doneAt: 0 });
+  SPEC.idx = 0; document.getElementById('spec').hidden = true;
   S.escMsg = null; S.escStart = null; MG.active = false; $('mg').hidden = true;
   S.snap = null; S.lastQ = -1; S.disp = { cars: [], peds: [], pl: [{}, {}, {}, {}] };
   if (host) S.sim = newSim(match); else S.sim = null;
@@ -1237,7 +1252,7 @@ function enterMatch(match, host) {
 }
 function backToLobby() {
   if (S.match) S.ignored.add(S.match.id);
-  MG.active = false; $('mg').hidden = true;
+  MG.active = false; $('mg').hidden = true; $('spec').hidden = true;
   if (S.isHost && S.room) S.room.presence({ m: null, w: null, g: null }).catch(() => {});
   else if (S.room) S.room.presence({ g: null }).catch(() => {});
   document.body.classList.remove('playing');
@@ -1541,7 +1556,7 @@ function label(text, x, y, font) {
 }
 function drawPlayer(p, t) {
   const col = PC[p.slot], a = animOf('P' + p.slot, p.x, p.y);
-  if (p.st === 3) ctx.globalAlpha = 0.55;
+  if (p.st === 3) { drawSeated(p, a, t); return; }
   ctx.fillStyle = col + '33'; ctx.strokeStyle = col; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.ellipse(p.x, p.y + 2, 23, 23, 0, 0, 7); ctx.fill(); ctx.stroke();
   if (p.sp) {
@@ -1556,6 +1571,19 @@ function drawPlayer(p, t) {
   if (p.st === 1) { for (let k = 0; k < 3; k++) { const an = t / 300 + k * 2.1; ctx.fillStyle = '#F5D37A'; ctx.beginPath(); ctx.arc(p.x + Math.cos(an) * 20, p.y - 6 + Math.sin(an) * 8, 4, 0, 7); ctx.fill(); } }
   if (p.fa && p.st === 0) { ctx.fillStyle = '#9BD3F5'; for (const o of [-18, 18]) { const yy = p.y - 12 + ((t / 12 + o * 3) % 14); ctx.beginPath(); ctx.moveTo(p.x + o, yy - 5); ctx.quadraticCurveTo(p.x + o + 4, yy + 2, p.x + o, yy + 3); ctx.quadraticCurveTo(p.x + o - 4, yy + 2, p.x + o, yy - 5); ctx.fill(); } }
   ctx.globalAlpha = 1;
+}
+function drawSeated(p, a, t) {
+  const [, , face] = seatOf(p.slot, S.match.cafe);
+  a.h = face; a.mv = 0;
+  drawPerson(p.x, p.y, a, { body: PC[p.slot], arm: PCD[p.slot], hair: HAIRS[(p.slot + 2) % 6] });
+  const dir = Math.cos(face), cx = p.x + dir * 18, cy = p.y + 3;
+  const sip = (Math.sin(t / 700 + p.slot) + 1) / 2;
+  ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(cx - dir * sip * 4, cy - sip * 3, 4.5, 0, 7); ctx.fill();
+  ctx.fillStyle = '#6B4B3A'; ctx.beginPath(); ctx.arc(cx - dir * sip * 4, cy - sip * 3, 3, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.6;
+  for (let k = 0; k < 2; k++) { const ph = (t / 900 + k * 0.5) % 1; const sx = cx + (k ? 3 : -3), sy = cy - 8 - ph * 14; ctx.globalAlpha = 1 - ph; ctx.beginPath(); ctx.moveTo(sx, sy + 6); ctx.quadraticCurveTo(sx + 3, sy + 3, sx, sy); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  label((p.slot + 1) + ' · ' + p.nick + (p.slot === S.mySlot ? ' (ти)' : ''), p.x, p.y - 28);
 }
 function drawSquad(q, t, qi) {
   const offs = [[-14, -8], [14, -8], [0, 12]];
@@ -1597,7 +1625,7 @@ function drawWeather(dt, t) {
       ctx.beginPath(); ctx.arc(p.x, p.y, 1.4 + p.s * 2.6, 0, 7); ctx.fill();
     }
   } else if (w === 'fog') {
-    const px = (S.me.x - cam.x) * cam.s, py = (S.me.y - cam.y) * cam.s;
+    const px = ((cam.fx ?? S.me.x) - cam.x) * cam.s, py = ((cam.fy ?? S.me.y) - cam.y) * cam.s;
     const fc = day ? '220,226,232' : '42,48,66';
     const gr = ctx.createRadialGradient(px, py, 120 * cam.s + 40, px, py, 430 * cam.s + 120);
     gr.addColorStop(0, `rgba(${fc},0)`); gr.addColorStop(1, `rgba(${fc},.82)`);
@@ -1650,10 +1678,10 @@ function drawFx(f) {
     return;
   }
   if (f.age > CAP_MS) return;
-  for (const [dx, dy] of [[-26, -4], [26, -4], [0, 24]]) {
-    ctx.save(); ctx.shadowColor = GREEN; ctx.shadowBlur = 14; ctx.fillStyle = GREEN; ctx.beginPath(); ctx.arc(f.x + dx, f.y + dy, 11, 0, 7); ctx.fill(); ctx.restore();
-    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(f.x + dx, f.y + dy, 11, 0, 7); ctx.stroke();
-  }
+  [-2.6, -0.5, 1.55].forEach((ang, k) => {
+    const rr0 = 30 - Math.min(1, f.age / 300) * 4, x = f.x + Math.cos(ang) * rr0, y = f.y + Math.sin(ang) * rr0;
+    drawPerson(x, y, { h: ang + Math.PI, ph: f.age / 90 + k, mv: f.age < 300 ? 0.8 : 0.15 }, { body: TCC_BODY, arm: TCC_ARM, hair: HAIRS[(k + 3) % 6], glow: GREEN, hood: true });
+  });
 }
 function fmt(ms) { const s = Math.floor(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
 const ST_TXT = ['у дорозі', 'збитий', 'у ТЦК', 'на каві', 'вийшов'];
@@ -1687,8 +1715,24 @@ function drawMini(view) {
     g.beginPath(); g.arc(p.x * k, p.y * ky, p.slot === S.mySlot ? 9 : 7, 0, 7); g.fill(); g.stroke();
   }
 }
+// після кави (або коли спроба втечі вже використана) камера за 3 с переходить на тих, хто ще грає
+const SPEC = { idx: 0 };
+function camFocus(view) {
+  const [st, , , cst, , , eu] = myStatus(), now = Date.now(), m = S.me;
+  const done = st === 3 || st === 4 || (st === 2 && cst === 2 && (eu || m.escTried) && !MG.active && !m.escOk);
+  const specEl = document.getElementById('spec');
+  if (!done) { m.doneAt = 0; specEl.hidden = true; return { x: m.x, y: m.y }; }
+  if (!m.doneAt) m.doneAt = now;
+  const live = view.players.filter(p => p.slot !== S.mySlot && (p.st === 0 || p.st === 1));
+  const cands = live.length ? live : view.players.filter(p => p.slot !== S.mySlot && p.st === 2);
+  if (now - m.doneAt < 3000 || !cands.length) { specEl.hidden = true; return { x: m.x, y: m.y }; }
+  const p = cands[((SPEC.idx % cands.length) + cands.length) % cands.length];
+  specEl.hidden = false; document.getElementById('specName').textContent = (p.slot + 1) + ' · ' + p.nick;
+  return { x: p.x, y: p.y, spec: true };
+}
 function drawGuide(view) {
   if (!S.match) return;
+  if (!document.getElementById('spec').hidden) return;
   const R = cafeRect(S.match.cafe), gx = R.x + R.w / 2, gy = R.y + R.h / 2;
   const sx = (gx - cam.x) * cam.s, sy = (gy - cam.y) * cam.s, vw = innerWidth, vh = innerHeight;
   if (sx > 0 && sy > 0 && sx < vw && sy < vh) return;
@@ -1706,7 +1750,8 @@ function render(dt, t) {
   const vw = innerWidth, vh = innerHeight;
   cam.s = document.body.classList.contains('touch') ? clamp(Math.min(vw, vh) / (7.5 * T), 0.55, 1.25) : clamp(Math.min(vw / (14 * T), vh / (10 * T)), 0.45, 1.25);
   const tw = vw / cam.s, th = vh / cam.s;
-  let fx = S.me.x - tw / 2, fy = S.me.y - th / 2;
+  const foc = camFocus(view); cam.fx = foc.x; cam.fy = foc.y;
+  let fx = foc.x - tw / 2, fy = foc.y - th / 2;
   fx = tw >= MW ? (MW - tw) / 2 : clamp(fx, 0, MW - tw); fy = th >= MH ? (MH - th) / 2 : clamp(fy, -60 / cam.s, MH - th + 40 / cam.s);
   if (!cam.init) { cam.x = fx; cam.y = fy; cam.init = true; } else { cam.x += (fx - cam.x) * Math.min(1, dt * 8); cam.y += (fy - cam.y) * Math.min(1, dt * 8); }
   let shake = 0; const [st] = myStatus(); if (st === 1 || Date.now() < (S.me.lstunUntil || 0)) shake = 3;
