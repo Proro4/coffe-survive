@@ -43,6 +43,7 @@ body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:Manr
 .sub{margin:0;color:var(--muted);font-size:15px;line-height:1.45}
 label.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700;color:var(--muted)}
 input[type=text]{font:inherit;font-size:16px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
+.nickrow{display:flex;gap:8px}.nickrow input{flex:1;min-width:0}.nickrow button{flex:none}
 .row{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
 .row input{width:20px;height:20px;accent-color:var(--accent)}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
@@ -82,6 +83,18 @@ body.touch .chip{font-size:11px;padding:4px 8px}
 body.touch .timer{font-size:13px;padding:4px 8px}
 body{-webkit-touch-callout:none}
 @media (max-width:640px){ .title{font-size:15px} .chip{font-size:11px;padding:4px 8px} }
+.mgcard{align-items:center;text-align:center}
+.mgseq{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.mgseq .a{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--panel2);border:2px solid var(--line);color:var(--ink)}
+.mgseq .a svg{width:28px;height:28px}
+.mgseq .a.cur{border-color:#FDE68A;box-shadow:0 0 0 3px rgba(253,230,138,.35)}
+.mgseq .a.done{background:#2E5D46;border-color:var(--ok);color:#DFFBEA}
+.mgseq .a.bad{background:#5B2330;border-color:#F87171}
+.mgbar{width:100%;height:10px;border-radius:5px;background:var(--panel2);overflow:hidden}
+.mgbar span{display:block;height:100%;width:100%;background:#FDE68A}
+.mgbtns{display:flex;gap:10px;justify-content:center}
+.mgbtns button{width:68px;height:68px;padding:0;display:flex;align-items:center;justify-content:center;touch-action:none}
+.mgbtns button svg{width:30px;height:30px}
 .toast{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);padding:10px 16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;font-weight:700;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center}
 .toast.show{opacity:1}
 </style>
@@ -116,7 +129,7 @@ body{-webkit-touch-callout:none}
       <h1>Втеча на каву</h1>
       <p class="sub">Дійди з дому до відкритої кав'ярні. Машини збивають на 3 секунди, а серед машин і перехожих ховаються буси й працівники ТЦК.</p>
       <label class="field" for="nick">Твій нік
-        <input type="text" id="nick" maxlength="16" autocomplete="off">
+        <span class="nickrow"><input type="text" id="nick" maxlength="24" autocomplete="off"><button type="button" id="nickRoll" aria-label="Інший випадковий нік">Інший</button></span>
       </label>
       <div class="net" id="net">Підключення до кімнати…</div>
       <div class="peers" id="peers"></div>
@@ -133,11 +146,28 @@ body{-webkit-touch-callout:none}
           <li>WASD або стрілки: рух. Shift: біг ×1.5. Запасу вистачає на 8 клітинок, його можна витрачати частинами. Коли запас закінчиться, 10 с втоми.</li>
           <li>На телефоні: хрестовина зліва (можна вести пальцем по діагоналі), кнопка «БІГ» праворуч.</li>
           <li>На зебрі машини зупиняються. Поза нею можуть збити.</li>
-          <li>Буси ТЦК (їх двоє) помічають за 3 клітинки й відстає після 5. Працівники помічають за 2 й відстають після 4.</li>
+          <li>Буси ТЦК (їх троє) помічають за 3 клітинки й відстають після 5. Працівники (теж троє) помічають за 2 й відстають після 4.</li>
+          <li>Карта щоматчу трохи інша: дороги, проходи дворами й дерева змінюються. Прохід до кав'ярні є завжди, але частина провулків веде в тупик.</li>
+          <li>На базі ТЦК у правій стіні є тріщина «А». Підійди до неї й за 5 секунд повтори 6 стрілок: вийде, опинишся по той бік стіни. Спроба одна на матч.</li>
           <li>Спійманого тримають, поки не під'їде бус, а потім везуть на базу. Якщо спіймають усіх, це поразка.</li>
           <li>На карті лежить листочок «БРОНЬ». З ним тебе одразу відпустять, але бронь пропаде й з'явиться деінде.</li>
         </ul>
       </details>
+    </div>
+  </div>
+
+  <div class="overlay" id="mg" hidden>
+    <div class="card mgcard">
+      <h2>Втеча з ТЦК</h2>
+      <p class="sub">Повтори 6 стрілок по черзі за 5 секунд. Одна помилка, і спроба згорить.</p>
+      <div class="mgseq" id="mgSeq"></div>
+      <div class="mgbar"><span id="mgBar"></span></div>
+      <div class="mgbtns" id="mgBtns">
+        <button type="button" data-d="left" aria-label="Вліво"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(-90deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+        <button type="button" data-d="up" aria-label="Вгору"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(0deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+        <button type="button" data-d="down" aria-label="Вниз"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(180deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+        <button type="button" data-d="right" aria-label="Вправо"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(90deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+      </div>
     </div>
   </div>
 
@@ -152,8 +182,16 @@ body{-webkit-touch-callout:none}
 
 <script>
 'use strict';
-const MAP = {"tile":60,"grid":["GGGGGGGGGGGGGGGGGGGGGGGGGGGGGG","GGHHHGGGGHHHGGGGHHHGGGGHHHGGGG","GGHHHGGGGHHHGGGGHHHGGGGHHHGGGG","SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS","RRRRZRRXXRRRZRRRRRRRRRRRRRZRRR","RRRRZRRXXRRRZRRRRRRRRRRRRRZRRR","SSSSSSSVVSSSSSSSSSSSSSSSSSSSSS","BBBBBGSVVSBBBBBBGPBBBBBBBBBBBB","BPPPPPSVVSBBBBBBGPBBBBBBBBBBBB","BPPPPPSVVSPPPPPPBPBBBBBPPPPPPP","BPPPPPSYYSPPPPPPBPBBBBBPPPPPPP","BPPPPPSVVSPPPPPPBBBBBBBBBBPBBB","BBBBGGSVVSBBBBPPBBGGGGGBBBPBBB","SSSSSSSVVSSSSSSSSSSSSSSSSSSSSS","RRZRRRRXXRRRRRRRRZRRXXRRRZRRRR","RRZRRRRXXRRRRRRRRZRRXXRRRZRRRR","SSSSSSSSSSSSSSSSSSSSVVSSSSSSSS","BBBBBGBBBBBBBPBBBBBSVVSGTTTTTG","BBBBBGBPPPPBBPBBBBBSVVSGTTTTTG","BBBBBGBPPPPBBPBBBBBSVVSGTTTTTG","PPPPBGBPPPPBBPBBBBBSYYSGTTTTTG","PPPPBGBBBPBBBBPPPPPSVVSGGGGGGG","GGGGGGGGGGGGGGGGGGGSVVSGGGGGGG","SSSSSSSSSSSSSSSSSSSSVVSSSSSSSS","RRRRRRZRRRRRZRRRRRRRXXRRRRRZRR","RRRRRRZRRRRRZRRRRRRRXXRRRRRZRR","SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS","GGGCCCGGGGGGGCCCCGGGGGGCCCGGGG","GGGCCCGGGGGGGCCCCGGGGGGCCCGGGG","GGGGGGGGGGGGGGGGGGGGGGGGGGGGGG"],"houses":[[2,1,3,2],[9,1,3,2],[16,1,3,2],[23,1,3,2]],"cafes":[[3,27,3,2],[13,27,4,2],[23,27,3,2]],"base":[24,17,5,4],"trees":[[0,0],[6,0],[7,2],[13,1],[14,2],[20,0],[21,2],[27,1],[28,2],[19,12],[21,12],[2,10],[15,22],[5,22],[24,22],[28,22],[0,28],[1,29],[8,28],[10,29],[19,28],[20,27],[28,28],[29,29]],"buildings":[[0,7,5,1],[0,8,1,5],[1,12,3,1],[10,7,6,2],[10,12,4,1],[16,9,1,4],[17,11,1,2],[18,7,5,5],[23,7,7,2],[23,11,3,2],[27,11,3,2],[0,17,4,3],[4,17,1,5],[6,17,6,1],[6,18,1,4],[11,18,1,4],[7,21,2,1],[10,21,1,1],[12,17,1,5],[13,21,1,1],[14,17,5,4]]};
-const T = MAP.tile, W = 30, H = 30, MW = W * T, MH = H * T;
+const T = 60, W = 52, H = 50, MW = W * T, MH = H * T;
+const RROWS = [4, 16, 28, 40];
+const HOUSES = [[4, 1, 3, 2], [16, 1, 3, 2], [31, 1, 3, 2], [44, 1, 3, 2]];
+const CAFES = [[6, 45, 3, 2], [24, 45, 4, 2], [42, 45, 3, 2]];
+const BASE = [44, 19, 5, 4];
+const DROP = [46, 17];
+const CRACK = { x: 49 * T, y: 20 * T + 36 };
+const CRACK_IN = { x: 49 * T - 28, y: CRACK.y };
+const ESC_OUT = { x: 49 * T + 40, y: CRACK.y + 8 };
+let M = null, treeSet = new Set();
 const PC = ['#7CC4F0', '#C3A6F0', '#F5D37A', '#F4A07A'];
 const PCD = ['#4F93BF', '#9579C9', '#C9A444', '#CC7650'];
 const CARC = ['#D7D9E3', '#8C93B0', '#B98A9E', '#9CB8B0', '#E0C49A'];
@@ -164,15 +202,14 @@ const VAN_SEE = 3 * T, VAN_LOSE = 5 * T, WK_SEE = 2 * T, WK_LOSE = 4 * T;
 const HIDE_MS = 5000, STUN_MS = 3000, IMMUNE_MS = 1500, CAP_MS = 1400, GRACE_MS = 3000;
 const PR = 14;
 const CAFE_NAMES = ["Кав'ярня A", "Кав'ярня B", "Кав'ярня C"];
-const bx = MAP.base[0] * T, by = MAP.base[1] * T;
+const bx = BASE[0] * T, by = BASE[1] * T;
 const BASE_SPOTS = [[bx + 50, by + 50], [bx + 250, by + 50], [bx + 50, by + 190], [bx + 250, by + 190]];
 
 // ---------- helpers ----------
 function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-const tileAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? 'B' : MAP.grid[y][x];
-const treeSet = new Set(MAP.trees.map(t => t[0] + ',' + t[1]));
+const tileAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? 'B' : M.grid[y][x];
 const isTree = (x, y) => treeSet.has(x + ',' + y);
 function solid(x, y) { const t = tileAt(x, y); return t === 'B' || t === 'H' || t === 'C' || t === 'T'; }
 const isRoad = t => 'RVXZY'.includes(t);
@@ -229,7 +266,7 @@ function tileCost(x, y) {
   return 9;
 }
 function botPath(sx, sy, goals) {
-  const dist2 = new Float32Array(W * H).fill(Infinity), prev = new Int32Array(W * H).fill(-1);
+  const dist2 = new Float64Array(W * H).fill(Infinity), prev = new Int32Array(W * H).fill(-1);
   const s = sy * W + sx; dist2[s] = 0;
   const heap = [];
   const push = (d, k) => { heap.push([d, k]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
@@ -252,10 +289,108 @@ function botPath(sx, sy, goals) {
   while (k !== s && k >= 0) { path.push([k % W, (k / W) | 0]); k = prev[k]; }
   return path.reverse();
 }
-function cafeRect(i) { const c = MAP.cafes[i]; return { x: c[0] * T, y: c[1] * T, w: c[2] * T, h: c[3] * T }; }
+function cafeRect(i) { const c = CAFES[i]; return { x: c[0] * T, y: c[1] * T, w: c[2] * T, h: c[3] * T }; }
 function touchesRect(p, R, pad) { const cx = clamp(p.x, R.x, R.x + R.w), cy = clamp(p.y, R.y, R.y + R.h); return Math.hypot(p.x - cx, p.y - cy) < PR + pad; }
-function spawnOf(slot) { const h = MAP.houses[slot]; return [(h[0] + h[2] / 2) * T, 3 * T + 28]; }
+function spawnOf(slot) { const h = HOUSES[slot]; return [(h[0] + h[2] / 2) * T, 3 * T + 28]; }
 function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+
+// ---------- map generator ----------
+// Карта генерується з зерна матчу однаково в усіх: вертикальні дороги (1 або 2 на смугу кварталів),
+// додатковий прохід через двори (може бути або ні), провулок, який перекриває дерево (дерева може не бути),
+// і кілька тупиків. Дістатися кав'ярні можна завжди: це перевіряється, інакше береться інше зерно.
+function tryGenMap(seed, force) {
+  const R = rng((seed ^ 0x2545F491) >>> 0), ri = (a, b) => a + Math.floor(R() * (b - a + 1));
+  const g = []; for (let y = 0; y < H; y++) g.push(new Array(W).fill('G'));
+  const set = (x, y, v) => { if (x >= 0 && y >= 0 && x < W && y < H) g[y][x] = v; };
+  const fill = (x, y, w, h, v) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) set(i, j, v); };
+  const trees = new Set(), decor = [], loops = [];
+  for (const h of HOUSES) fill(h[0], h[1], h[2], h[3], 'H');
+  for (const r of RROWS) { fill(0, r - 1, W, 1, 'S'); fill(0, r, W, 2, 'R'); fill(0, r + 2, W, 1, 'S'); }
+  for (const c of CAFES) fill(c[0], c[1], c[2], c[3], 'C');
+  for (let b = 0; b < 3; b++) {
+    const top = RROWS[b] + 3, bot = RROWS[b + 1] - 2;
+    fill(0, top, W, bot - top + 1, 'B');
+    const resFrom = b === 1 ? 43 : W;
+    const nV = R() < 0.4 ? 2 : 1, vc = [];
+    for (let k = 0; k < 80 && vc.length < nV; k++) { const c = ri(3, Math.min(W - 6, resFrom - 5)); if (vc.every(o => Math.abs(o - c) >= 12)) vc.push(c); }
+    for (const c of vc) {
+      fill(c, top - 1, 2, bot - top + 3, 'V');
+      fill(c - 1, top, 1, bot - top + 1, 'S'); fill(c + 2, top, 1, bot - top + 1, 'S');
+      for (const rr0 of [RROWS[b], RROWS[b + 1]]) for (let r = rr0; r <= rr0 + 1; r++) { set(c, r, 'X'); set(c + 1, r, 'X'); }
+      const yr = ri(top + 2, bot - 2); set(c, yr, 'Y'); set(c + 1, yr, 'Y');
+      loops.push({ down: c * T + 30, up: (c + 1) * T + 30, y0: RROWS[b] * T + 30, y1: (RROWS[b + 1] + 1) * T + 30 });
+    }
+    const used = vc.map(c => [c - 2, c + 3]); used.push([resFrom - 1, W + 5], [-5, 1], [W - 2, W + 5]);
+    const free = (x0, x1) => used.every(([a, z]) => x1 < a - 1 || x0 > z + 1);
+    const place = w => { for (let k = 0; k < 120; k++) { const x = ri(1, W - 2 - w); if (free(x, x + w - 1)) { used.push([x, x + w - 1]); return x; } } return -1; };
+    if (vc.length === 1 && R() < 0.55) {
+      const x = place(6);
+      if (x >= 0) {
+        const a = x + ri(0, 1), z = x + ri(4, 5), k = ri(top + 2, bot - 2);
+        const [c1, c2] = R() < 0.5 ? [a, z] : [z, a];
+        fill(c1, top, 1, k - top + 1, 'P');
+        fill(Math.min(c1, c2), k - 1, Math.abs(c2 - c1) + 1, 3, 'P');
+        fill(c2, k, 1, bot - k + 1, 'P');
+        if (R() < 0.5) decor.push(['bench', Math.min(c1, c2) + 1, k - 1]);
+      }
+    }
+    if (R() < 0.85) { const x = place(1); if (x >= 0) { fill(x, top, 1, bot - top + 1, 'P'); if (R() < 0.6) trees.add(x + ',' + ri(top + 2, bot - 2)); } }
+    const nd = ri(2, 3);
+    for (let d = 0; d < nd; d++) {
+      if (R() < 0.5) {
+        const x = place(3); if (x < 0) continue;
+        const len = ri(3, 5);
+        if (R() < 0.5) { fill(x + 1, top, 1, len, 'P'); fill(x, top + len, 3, 2, 'G'); if (R() < 0.5) trees.add((x + ri(0, 2)) + ',' + (top + len + 1)); }
+        else { fill(x + 1, bot - len + 1, 1, len, 'P'); fill(x, bot - len - 1, 3, 2, 'G'); if (R() < 0.5) decor.push(['bench', x, bot - len - 1]); }
+      } else {
+        const x = place(4); if (x < 0) continue;
+        const depth = ri(3, 4), fromTop = R() < 0.5, y0 = fromTop ? top : bot - depth + 1;
+        fill(x, y0, 4, depth, 'P');
+        const cy = fromTop ? y0 + depth - 2 : y0;
+        fill(x + 1, cy, 2, 2, 'G');
+        if (R() < 0.6) decor.push(['sand', x + 1, cy]);
+      }
+    }
+  }
+  fill(43, 19, 1, 8, 'B'); fill(44, 19, 5, 4, 'T'); fill(44, 23, 5, 4, 'B'); fill(49, 19, 3, 1, 'B'); fill(49, 20, 3, 7, 'G');
+  for (const r of RROWS) {
+    const cols = [];
+    const n = ri(3, 5);
+    for (let k = 0; k < 100 && cols.length < n; k++) {
+      const c = ri(2, W - 3);
+      if (g[r][c] !== 'R' || g[r][c - 1] === 'X' || g[r][c + 1] === 'X' || g[r][c - 2] === 'X' || g[r][c + 2] === 'X') continue;
+      if (cols.every(o => Math.abs(o - c) >= 6)) cols.push(c);
+    }
+    for (const c of cols) { set(c, r, 'Z'); set(c, r + 1, 'Z'); }
+  }
+  const isG = (x, y) => x >= 0 && y >= 0 && x < W && y < H && g[y][x] === 'G';
+  for (let k = 0; k < 12; k++) { const x = ri(0, W - 1), y = ri(0, 2); if (isG(x, y)) trees.add(x + ',' + y); }
+  const nearCafe = (x, y) => CAFES.some(c => x >= c[0] - 1 && x <= c[0] + c[2] && y >= c[1] - 1 && y <= c[1] + c[3]);
+  for (let k = 0; k < 40; k++) { const x = ri(0, W - 1), y = ri(44, H - 1); if (isG(x, y) && !nearCafe(x, y)) trees.add(x + ',' + y); }
+  const solidAt = (x, y) => 'BHCT'.includes(g[y][x]) || trees.has(x + ',' + y);
+  const seen = new Uint8Array(W * H), q = [[49, 20]]; seen[20 * W + 49] = 1;
+  while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of NB) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const k = ny * W + nx; if (seen[k] || solidAt(nx, ny)) continue; seen[k] = 1; q.push([nx, ny]); } }
+  const ok = HOUSES.every(h => seen[3 * W + h[0] + 1]) && CAFES.every(c => seen[(c[1] - 1) * W + c[0] + 1]);
+  if (!ok && !force) return null;
+  const lamps = [];
+  for (const y of [3, ...RROWS.map(r => r - 1).slice(1), ...RROWS.map(r => r + 2)]) { for (let x = ri(1, 5); x < W; x += 7) if (g[y][x] === 'S') lamps.push([x, y]); }
+  const vis = new Uint8Array(W * H), buildings = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (g[y][x] !== 'B' || vis[y * W + x]) continue;
+    let w = 1; while (x + w < W && w < 6 && g[y][x + w] === 'B' && !vis[y * W + x + w]) w++;
+    let h = 1;
+    outer: while (y + h < H && h < 4) { for (let i = 0; i < w; i++) if (g[y + h][x + i] !== 'B' || vis[(y + h) * W + x + i]) break outer; h++; }
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) vis[(y + j) * W + x + i] = 1;
+    buildings.push([x, y, w, h]);
+  }
+  return { seed, grid: g.map(r => r.join('')), trees: [...trees].map(s => s.split(',').map(Number)), buildings, loops, lamps, decor };
+}
+function genMap(seed) {
+  for (let a = 0; a < 40; a++) { const m = tryGenMap((seed + a * 7919) >>> 0); if (m) return m; }
+  return tryGenMap(seed >>> 0, true);
+}
+function setMap(m) { M = m; treeSet = new Set(m.trees.map(t => t[0] + ',' + t[1])); }
+setMap(genMap(1));
 
 // ---------- static map render ----------
 function renderStatic(cafeIdx) {
@@ -274,11 +409,11 @@ function renderStatic(cafeIdx) {
   }
   // lane dashes
   g.strokeStyle = 'rgba(233,228,212,.55)'; g.lineWidth = 3; g.setLineDash([26, 18]);
-  for (const top of [4, 14, 24]) {
+  for (const top of RROWS) {
     let x = 0;
     while (x < W) { if (tileAt(x, top) === 'R') { const s = x; while (x < W && tileAt(x, top) === 'R') x++; g.beginPath(); g.moveTo(s * T + 8, (top + 1) * T); g.lineTo(x * T - 8, (top + 1) * T); g.stroke(); } else x++; }
   }
-  for (const [left, r0, r1] of [[7, 6, 14], [20, 16, 24]]) {
+  for (const [left, r0, r1] of M.loops.map(L => [(L.down - 30) / T, 0, H])) {
     let y = r0;
     while (y < r1) { if (tileAt(left, y) === 'V') { const s = y; while (y < r1 && tileAt(left, y) === 'V') y++; g.beginPath(); g.moveTo((left + 1) * T, s * T + 8); g.lineTo((left + 1) * T, y * T - 8); g.stroke(); } else y++; }
   }
@@ -304,8 +439,7 @@ function renderStatic(cafeIdx) {
     if (t === 'Y') for (let k = 0; k < 4; k++) g.fillRect(x * T + 5 + k * 14, y * T + 8, 8, T - 16);
   }
   // lamps
-  const lamps = [[2, 3], [11, 3], [20, 3], [28, 3], [4, 6], [14, 6], [26, 6], [1, 13], [12, 13], [24, 13], [5, 16], [15, 16], [27, 16], [3, 23], [12, 23], [26, 23], [8, 26], [18, 26], [28, 26]];
-  for (const [x, y] of lamps) {
+  for (const [x, y] of M.lamps) {
     const cx = x * T + 30, cy = y * T + 30, gr = g.createRadialGradient(cx, cy, 0, cx, cy, 70);
     gr.addColorStop(0, 'rgba(253,230,138,.22)'); gr.addColorStop(1, 'rgba(253,230,138,0)');
     g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, 70, 0, 7); g.fill();
@@ -313,7 +447,7 @@ function renderStatic(cafeIdx) {
   }
   // buildings
   const R = rng(7);
-  for (const [c, r, w, h] of MAP.buildings) {
+  for (const [c, r, w, h] of M.buildings) {
     const X = c * T + 3, Y = r * T + 3, Wd = w * T - 6, Hd = h * T - 6;
     g.fillStyle = 'rgba(20,23,38,.5)'; rr(g, X + 4, Y + 6, Wd, Hd, 6); g.fill();
     g.fillStyle = '#4F5275'; rr(g, X, Y, Wd, Hd, 6); g.fill();
@@ -323,17 +457,19 @@ function renderStatic(cafeIdx) {
     }
   }
   // trees
-  for (const [x, y] of MAP.trees) {
+  for (const [x, y] of M.trees) {
     const cx = x * T + 30, cy = y * T + 30;
     g.fillStyle = '#3F6B52'; g.beginPath(); g.arc(cx, cy, 24, 0, 7); g.fill();
     g.fillStyle = '#5C8C6C'; g.beginPath(); g.arc(cx - 6, cy - 6, 13, 0, 7); g.fill();
   }
   // courtyard details
-  g.fillStyle = '#C9B38A'; g.strokeStyle = '#8C7A5A'; g.lineWidth = 3; rr(g, 130, 545, 80, 80, 8); g.fill(); g.stroke();
-  g.fillStyle = '#8C6B4F'; rr(g, 445, 1100, 130, 16, 4); g.fill(); rr(g, 445, 1200, 130, 16, 4); g.fill(); rr(g, 1440, 560, 120, 16, 4); g.fill();
+  for (const [k, x, y] of M.decor) {
+    if (k === 'sand') { g.fillStyle = '#C9B38A'; g.strokeStyle = '#8C7A5A'; g.lineWidth = 3; rr(g, x * T + 12, y * T + 12, 2 * T - 24, 2 * T - 24, 8); g.fill(); g.stroke(); }
+    else { g.fillStyle = '#8C6B4F'; rr(g, x * T + 10, y * T + 22, 2 * T - 20, 14, 4); g.fill(); }
+  }
   // houses
   g.textAlign = 'center';
-  MAP.houses.forEach(([c, r, w, h], i) => {
+  HOUSES.forEach(([c, r, w, h], i) => {
     const X = c * T, Y = r * T, Wd = w * T, Hd = h * T, rh = Hd - 34;
     g.save(); g.shadowColor = PC[i]; g.shadowBlur = 22; g.fillStyle = PC[i]; rr(g, X, Y, Wd, rh + 6, 6); g.fill(); g.restore();
     g.fillStyle = PCD[i]; g.fillRect(X, Y + rh / 2, Wd, rh / 2);
@@ -352,16 +488,22 @@ function renderStatic(cafeIdx) {
   });
   // base
   {
-    const [c, r, w, h] = MAP.base, X = c * T, Y = r * T, Wd = w * T, Hd = h * T;
+    const [c, r, w, h] = BASE, X = c * T, Y = r * T, Wd = w * T, Hd = h * T;
     g.fillStyle = '#3B2A36'; rr(g, X, Y, Wd, Hd, 8); g.fill();
     g.save(); g.shadowColor = '#F87171'; g.shadowBlur = 12; g.strokeStyle = '#F87171'; g.lineWidth = 3; g.setLineDash([10, 7]); rr(g, X + 10, Y + 10, Wd - 20, Hd - 20, 6); g.stroke(); g.restore(); g.setLineDash([]);
     g.fillStyle = '#4A3542'; rr(g, X + 90, Y + 70, 120, 90, 6); g.fill();
     g.fillStyle = '#FCA5A5'; g.font = '800 26px Manrope, sans-serif'; g.fillText('БАЗА ТЦК', X + Wd / 2, Y + 112);
     g.fillStyle = '#F9C6C6'; g.font = '700 15px Manrope, sans-serif'; g.fillText('виходу немає', X + Wd / 2, Y + 142);
-    g.fillStyle = '#F87171'; rr(g, X + 120, Y + Hd - 8, 60, 12, 3); g.fill();
+    g.fillStyle = '#F87171'; rr(g, X + 120, Y - 4, 60, 12, 3); g.fill();
+    // тріщина в правій стіні (точка А)
+    g.strokeStyle = '#0E0B10'; g.lineWidth = 7; g.lineJoin = 'round'; g.beginPath();
+    g.moveTo(CRACK.x - 2, CRACK.y - 40); g.lineTo(CRACK.x - 10, CRACK.y - 22); g.lineTo(CRACK.x - 2, CRACK.y - 8); g.lineTo(CRACK.x - 12, CRACK.y + 8); g.lineTo(CRACK.x - 3, CRACK.y + 24); g.lineTo(CRACK.x - 9, CRACK.y + 40); g.stroke();
+    g.strokeStyle = '#FCA5A5'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = '#FDE68A'; g.beginPath(); g.arc(CRACK.x - 34, CRACK.y - 44, 13, 0, 7); g.fill();
+    g.fillStyle = '#1D2132'; g.font = '800 16px Manrope, sans-serif'; g.fillText('А', CRACK.x - 34, CRACK.y - 38);
   }
   // cafes
-  MAP.cafes.forEach(([c, r, w, h], i) => {
+  CAFES.forEach(([c, r, w, h], i) => {
     const X = c * T, Y = r * T, Wd = w * T, Hd = h * T;
     if (i === cafeIdx) {
       g.strokeStyle = '#F4A07A'; g.lineWidth = 3; g.setLineDash([10, 8]); rr(g, X - 18, Y - 18, Wd + 36, Hd + 36, 18); g.stroke(); g.setLineDash([]);
@@ -389,7 +531,10 @@ const S = {
   ignored: new Set(), ready: false,
   nick: '', net: 'connecting', room: null
 };
-function loadNick() { try { const n = localStorage.getItem('coffee-nick'); if (n) return n; } catch (e) {} return 'Гравець ' + Math.floor(10 + Math.random() * 89); }
+const NICK_ADJ = [['Сонний', 'Сонна'], ['Хитрий', 'Хитра'], ['Кавовий', 'Кавова'], ['Невловимий', 'Невловима'], ['Заброньований', 'Заброньована'], ['Підпільний', 'Підпільна'], ['Спритний', 'Спритна'], ['Втомлений', 'Втомлена'], ['Загадковий', 'Загадкова'], ['Пухнастий', 'Пухнаста'], ['Хрумкий', 'Хрумка'], ['Ледачий', 'Ледача'], ['Бешкетний', 'Бешкетна'], ['Таємний', 'Таємна'], ['Грізний', 'Грізна'], ['Ніжний', 'Ніжна'], ['Лисий', 'Лиса'], ['Смажений', 'Смажена'], ['Мармуровий', 'Мармурова'], ['Непохитний', 'Непохитна'], ['Сміливий', 'Смілива'], ['Швидкий', 'Швидка'], ['Боязкий', 'Боязка'], ['Нічний', 'Нічна'], ['Кмітливий', 'Кмітлива'], ['Туманний', 'Туманна']];
+const NICK_NOUN = [['Вареник', 0], ['Пельмень', 0], ['Бублик', 0], ['Сирник', 0], ['Кабачок', 0], ['Гарбуз', 0], ['Їжак', 0], ['Хом\'як', 0], ['Бобер', 0], ['Равлик', 0], ['Кавоман', 0], ['Борщ', 0], ['Козак', 0], ['Капібара', 1], ['Шаурма', 1], ['Бабця', 1], ['Жаба', 1], ['Картопля', 1], ['Ковбаска', 1], ['Панда', 1], ['Сова', 1], ['Качка', 1], ['Черепаха', 1], ['Булочка', 1], ['Цибуля', 1], ['Лисиця', 1], ['Кицька', 1], ['Ватрушка', 1]];
+function randomNick(R) { R = R || Math.random; const n = NICK_NOUN[Math.floor(R() * NICK_NOUN.length)], a = NICK_ADJ[Math.floor(R() * NICK_ADJ.length)]; return a[n[1]] + ' ' + n[0]; }
+function loadNick() { try { const n = localStorage.getItem('coffee-nick'); if (n && !/^Гравець \d+$/.test(n)) return n.slice(0, 24); } catch (e) {} const r = randomNick(); saveNick(r); return r; }
 function saveNick(n) { try { localStorage.setItem('coffee-nick', n); } catch (e) {} }
 S.nick = loadNick();
 
@@ -398,11 +543,11 @@ function newSim(match) {
   const R = rng(match.seed);
   const cars = [];
   const HL = [];
-  for (const r of [4, 14, 24]) { HL.push({ y: r * T + 30, dir: -1 }); HL.push({ y: (r + 1) * T + 30, dir: 1 }); }
-  const LOOPS = [{ down: 7 * T + 30, up: 8 * T + 30, y0: 4 * T + 30, y1: 15 * T + 30 }, { down: 20 * T + 30, up: 21 * T + 30, y0: 14 * T + 30, y1: 25 * T + 30 }];
-  for (const L of HL) for (let i = 0; i < 3; i++) {
+  for (const r of RROWS) { HL.push({ y: r * T + 30, dir: -1 }); HL.push({ y: (r + 1) * T + 30, dir: 1 }); }
+  const LOOPS = M.loops;
+  for (const L of HL) for (let i = 0; i < 4; i++) {
     const base = 190 + R() * 60;
-    cars.push({ ax: 'h', x: ((i + R() * 0.5) / 3) * MW, y: L.y, dir: L.dir, ldir: L.dir, base, spd: base, st: 'n', until: 0, tgt: -1, stopUntil: 0, tcc: false });
+    cars.push({ ax: 'h', x: ((i + R() * 0.5) / 4) * MW, y: L.y, dir: L.dir, ldir: L.dir, base, spd: base, st: 'n', until: 0, tgt: -1, stopUntil: 0, tcc: false });
   }
   for (const L of LOOPS) {
     const b1 = 170 + R() * 40, b2 = 170 + R() * 40;
@@ -411,15 +556,15 @@ function newSim(match) {
   }
   cars.forEach((c, i) => c.i = i);
   const vanCands = cars.filter(c => !(c.ax === 'h' && c.y < 6 * T));
-  for (let k = 0; k < 2 && vanCands.length; k++) { const j = Math.floor(R() * vanCands.length); vanCands.splice(j, 1)[0].tcc = true; }
+  for (let k = 0; k < 3 && vanCands.length; k++) { const j = Math.floor(R() * vanCands.length); vanCands.splice(j, 1)[0].tcc = true; }
   // peds
   const walkTiles = [];
   for (let y = 3; y < H; y++) for (let x = 0; x < W; x++) if ('SP'.includes(tileAt(x, y)) && !(y === 3 && x % 7 < 5)) walkTiles.push([x, y]);
   for (let i = walkTiles.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [walkTiles[i], walkTiles[j]] = [walkTiles[j], walkTiles[i]]; }
-  const peds = walkTiles.slice(0, 24).map(([x, y], i) => ({ i, x: x * T + 30, y: y * T + 30, tx: x, ty: y, px: x, py: y, spd: 45 + R() * 30, st: 'n', until: 0, tgt: -1, next: null, pathT: 0, tcc: false }));
+  const peds = walkTiles.slice(0, 40).map(([x, y], i) => ({ i, x: x * T + 30, y: y * T + 30, tx: x, ty: y, px: x, py: y, spd: 45 + R() * 30, st: 'n', until: 0, tgt: -1, next: null, pathT: 0, tcc: false }));
   const wc = peds.filter(p => p.ty >= 8);
-  for (let k = 0; k < 2 && wc.length; k++) { const j = Math.floor(R() * wc.length); wc.splice(j, 1)[0].tcc = true; }
-  const cr = MAP.cafes[match.cafe];
+  for (let k = 0; k < 3 && wc.length; k++) { const j = Math.floor(R() * wc.length); wc.splice(j, 1)[0].tcc = true; }
+  const cr = CAFES[match.cafe];
   const goals = new Set();
   for (let y = cr[1]; y < cr[1] + cr[3]; y++) for (let x = cr[0]; x < cr[0] + cr[2]; x++) for (const [dx, dy] of NB) {
     const nx = x + dx, ny = y + dy; if (!solid(nx, ny) && !isTree(nx, ny)) goals.add(ny * W + nx);
@@ -429,7 +574,7 @@ function newSim(match) {
     const label = match.slots[s], bot = match.bots.includes(s);
     if (!label && !bot) { players.push(null); continue; }
     const [x, y] = spawnOf(s);
-    players.push({ slot: s, label, bot, x, y, st: 0, until: 0, immune: 0, sp: false, fa: false, fatUntil: 0, sprLeft: SPR_D, path: null, pi: 0, replan: 0, stuck: 0, lx: x, ly: y, bron: false, safe: 0 });
+    players.push({ slot: s, label, bot, x, y, st: 0, until: 0, immune: 0, sp: false, fa: false, fatUntil: 0, sprLeft: SPR_D, path: null, pi: 0, replan: 0, stuck: 0, lx: x, ly: y, bron: false, safe: 0, escUsed: false, escAt: 0 });
   }
   const sim = { t0: Date.now(), cars, peds, players, goals, fx: [], squads: [], queue: [], seq: 0, end: 0, leaf: null };
   sim.leaf = randomLeafSpot(R, players);
@@ -440,7 +585,7 @@ const huntable = (p, now) => act(p) && now >= (p.safe || 0);
 function randomLeafSpot(R, players) {
   R = R || Math.random;
   for (let k = 0; k < 400; k++) {
-    const x = Math.floor(R() * W), y = 6 + Math.floor(R() * 20);
+    const x = Math.floor(R() * W), y = 6 + Math.floor(R() * 37);
     const t = tileAt(x, y);
     if (!'SPG'.includes(t) || isTree(x, y)) continue;
     const pt = { x: x * T + 30, y: y * T + 30 };
@@ -452,7 +597,6 @@ function randomLeafSpot(R, players) {
 function carO(c) { return c.ax === 'h' ? (c.dir > 0 ? 0 : 1) : (c.dir > 0 ? 2 : 3); }
 function restoreDir(c) { if (c.ax === 'h') c.dir = c.ldir; else if (c.loop) c.dir = (c.x === c.loop.down) ? 1 : -1; }
 function stun(p, now) { p.st = 1; p.until = now + STUN_MS; }
-const DROP = [26, 15];
 function roadPath(sx, sy, gx, gy) {
   sx = clamp(sx, 0, W - 1); sy = clamp(sy, 0, H - 1);
   if (sx === gx && sy === gy) return [];
@@ -495,6 +639,13 @@ function escortMove(p, carrier, target, dt) {
   if (L > 0) { const k = Math.min(1, step / L); p.x += dx * k; p.y += dy * k; }
   carrier.x = p.x - 22; carrier.y = p.y - 4;
 }
+function applyEscape(p, ok, now) {
+  if (!p || p.st !== 2 || p.cst !== 2 || p.escUsed) return;
+  p.escUsed = true;
+  if (!ok) return;
+  p.st = 0; p.cst = 0; p.x = ESC_OUT.x; p.y = ESC_OUT.y; p.safe = now + 3000; p.escAt = now; p.immune = now + 1500;
+  S.sim.fx.push({ x: p.x, y: p.y, t: now, k: 3 });
+}
 function placeInBase(p) { p.cst = 2; [p.x, p.y] = BASE_SPOTS[p.slot]; }
 function capture(p, e, now) {
   const sim = S.sim;
@@ -531,9 +682,9 @@ function vanTransport(c, dt, now) {
   if (c.st === 'deliver') { const p = sim.players[c.pass]; if (p) { p.x = c.x; p.y = c.y; } }
 }
 function toLane(c) {
-  const lanes = [270, 330, 870, 930, 1470, 1530];
-  let best = 930, bd = Infinity; for (const y of lanes) { const d = Math.abs(y - c.y); if (d < bd) { bd = d; best = y; } }
-  c.ax = 'h'; c.loop = null; c.y = best; c.ldir = (best === 330 || best === 930 || best === 1530) ? 1 : -1; c.dir = c.ldir;
+  const lanes = RROWS.flatMap(r => [r * T + 30, (r + 1) * T + 30]);
+  let best = lanes[2], bd = Infinity; for (const y of lanes) { const d = Math.abs(y - c.y); if (d < bd) { bd = d; best = y; } }
+  c.ax = 'h'; c.loop = null; c.y = best; c.ldir = RROWS.includes((best - 30) / T) ? -1 : 1; c.dir = c.ldir;
   c.x = clamp(c.x, 40, MW - 40);
 }
 function tccCheck(e, see, lose, now) {
@@ -590,9 +741,9 @@ function carsTick(dt, now) {
       let along, perp;
       if (c.ax === 'h') { const d = p.x - c.x; along = d; perp = Math.abs(p.y - c.y); if (Math.abs(d) > 6) c.dir = Math.sign(d); c.x = clamp(c.x + c.dir * Math.min(Math.abs(d), sp * dt), 40, MW - 40); }
       else { const d = p.y - c.y; along = d; perp = Math.abs(p.x - c.x); if (Math.abs(d) > 6) c.dir = Math.sign(d); c.y = clamp(c.y + c.dir * Math.min(Math.abs(d), sp * dt), c.loop.y0, c.loop.y1); }
-      c.spd = sp;
+      c.spd = Math.abs(along) > 6 ? sp : 0;
       if (dist(c, p) < 52) { capture(p, c, now); continue; }
-      if (Math.abs(along) < 50 && perp < VAN_SEE) {
+      if (Math.abs(along) < 50 && perp < VAN_LOSE) {
         c.squad = { x: c.x, y: c.y, tgt: p.slot, van: c, st: 'chase', next: null, pathT: 0 };
         sim.squads.push(c.squad);
       }
@@ -624,7 +775,7 @@ function pedsTick(dt, now) {
         escortMove(p, e, van, dt);
         if (dist(p, van) < 45) { p.cst = 1; startDeliver(van, p, now); e.st = 'hide'; e.until = now + HIDE_MS; e.tx = null; }
       } else { e.x = p.x - 22; e.y = p.y - 4; }
-      if (p.cst === 0 && now - p.heldAt > 30000) { placeInBase(p); sim.queue = sim.queue.filter(s => s !== p.slot); }
+      if (p.cst === 0 && now - p.heldAt > 45000) { placeInBase(p); sim.queue = sim.queue.filter(s => s !== p.slot); }
       continue;
     }
     if (e.tcc) tccCheck(e, WK_SEE, WK_LOSE, now);
@@ -679,7 +830,7 @@ function squadsTick(dt, now) {
       if (!p || p.st !== 2 || p.cst !== 0) { q.done = true; continue; }
       escortMove(p, q, van, dt);
       if (dist(p, van) < 45) { p.cst = 1; startDeliver(van, p, now); q.done = true; }
-      if (now - p.heldAt > 30000) { placeInBase(p); q.done = true; }
+      if (now - p.heldAt > 45000) { placeInBase(p); q.done = true; }
     } else {
       stepTo(q, van.x, van.y, TCC_V * 1.2 * dt, 4);
       if (dist(q, van) < 20 || q.x === undefined) q.done = true;
@@ -710,7 +861,8 @@ function botTick(p, dt, now) {
   if (p.pi < p.path.length) {
     const [a, b] = p.path[p.pi]; gx = a * T + 30; gy = b * T + 30;
     if (Math.hypot(gx - p.x, gy - p.y) < 8) { p.pi++; return; }
-    if (isRoad(tileAt(a, b)) && !isRoad(tileAt(tx(p.x), ty(p.y))) && carNear(gx, gy, 200)) return;
+    if (isRoad(tileAt(a, b)) && !isRoad(tileAt(tx(p.x), ty(p.y))) && carNear(gx, gy, 150) && (p.waitT = (p.waitT || 0) + dt) < 2.5) return;
+    p.waitT = 0;
   } else { gx = R.x + R.w / 2; gy = R.y + R.h / 2; }
   if (sim.leaf && !p.bron && dist(p, sim.leaf) < 3 * T) { gx = sim.leaf.x; gy = sim.leaf.y; p.replan = Math.min(p.replan, now + 800); }
   const fat = now < p.fatUntil;
@@ -734,7 +886,8 @@ function hostTick(dt) {
       const peer = peers.find(q => q.peer === p.label);
       if (!peer) { if (p.st !== 3 && p.st !== 2) p.st = 4; continue; }
       const g = peer.presence && peer.presence.g;
-      if (g && g.m === S.match.id && (p.st !== 2 || g.pl)) { p.x = clamp(num(g.x, p.x), 0, MW); p.y = clamp(num(g.y, p.y), 0, MH); p.sp = !!g.sp; p.fa = !!g.fa; }
+      if (g && g.esc && g.esc.m === S.match.id) applyEscape(p, !!g.esc.ok, now);
+      if (g && g.m === S.match.id && (p.st !== 2 || g.pl) && !(p.escAt && now - p.escAt < 1500)) { p.x = clamp(num(g.x, p.x), 0, MW); p.y = clamp(num(g.y, p.y), 0, MH); p.sp = !!g.sp; p.fa = !!g.fa; }
     }
   }
   for (const p of sim.players) {
@@ -766,7 +919,7 @@ function packWorld() {
     c: sim.cars.map(c => [Math.round(c.x), Math.round(c.y), carO(c), c.st === 'n' ? 0 : 1]),
     p: sim.peds.map(e => [Math.round(e.x), Math.round(e.y), e.st === 'n' ? 0 : (e.st === 'chase' || e.st === 'escort' ? 2 : 1)]),
     b: sim.players.filter(p => p && p.bot).map(p => [p.slot, Math.round(p.x), Math.round(p.y), p.sp ? 1 : 0, p.fa ? 1 : 0]),
-    s: sim.players.map(p => p ? [p.st, Math.max(0, Math.round((p.until || 0) - now)), p.bron ? 1 : 0, p.cst || 0, Math.round(p.x), Math.round(p.y)] : null),
+    s: sim.players.map(p => p ? [p.st, Math.max(0, Math.round((p.until || 0) - now)), p.bron ? 1 : 0, p.cst || 0, Math.round(p.x), Math.round(p.y), p.escUsed ? 1 : 0] : null),
     l: sim.leaf ? [Math.round(sim.leaf.x), Math.round(sim.leaf.y)] : null,
     f: sim.fx.map(f => [Math.round(f.x), Math.round(f.y), now - f.t, f.k || 0]),
     q: sim.squads.map(q => [Math.round(q.x), Math.round(q.y)])
@@ -779,6 +932,7 @@ let sprintHeld = false;
 addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') return;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+  if (MG.active && !e.repeat) { const d = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' }[e.code]; if (d) { mgInput(d); return; } }
   keys.add(e.code);
 });
 addEventListener('keyup', e => keys.delete(e.code));
@@ -828,17 +982,48 @@ function inputVec() {
 }
 const sprintKey = () => keys.has('ShiftLeft') || keys.has('ShiftRight') || sprintHeld;
 
+// ---------- escape minigame ----------
+const MG = { active: false, seq: [], i: 0, until: 0 };
+const DIRS = ['up', 'down', 'left', 'right'], DROT = { up: 0, right: 90, down: 180, left: -90 };
+const chevSvg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${DROT[d]}deg)" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg>`;
+function renderMg(bad) {
+  const box = document.getElementById('mgSeq'); box.textContent = '';
+  MG.seq.forEach((d, i) => { const el = document.createElement('div'); el.className = 'a' + (i < MG.i ? ' done' : i === MG.i ? (bad ? ' bad' : ' cur') : ''); el.innerHTML = chevSvg(d); box.append(el); });
+}
+function startMinigame() {
+  MG.active = true; MG.i = 0; MG.seq = Array.from({ length: 6 }, () => DIRS[Math.floor(Math.random() * 4)]); MG.until = Date.now() + 5000;
+  S.me.escTried = true; renderMg(false); document.getElementById('mg').hidden = false;
+}
+function mgInput(d) {
+  if (!MG.active) return;
+  if (d === MG.seq[MG.i]) { MG.i++; renderMg(false); if (MG.i >= MG.seq.length) finishMinigame(true); }
+  else { renderMg(true); finishMinigame(false); }
+}
+function finishMinigame(ok) {
+  if (!MG.active) return;
+  MG.active = false;
+  setTimeout(() => { document.getElementById('mg').hidden = true; }, ok ? 300 : 700);
+  const m = S.me;
+  if (ok) { m.escOk = true; m.x = ESC_OUT.x; m.y = ESC_OUT.y; m.placed = false; }
+  else toast('Не вийшло. Лишаєшся на базі ТЦК.');
+  if (S.isHost && S.sim) applyEscape(S.sim.players[S.mySlot], ok, Date.now());
+  else S.escMsg = { m: S.match.id, ok: ok ? 1 : 0 };
+}
+function mgTick() { if (MG.active) { const left = MG.until - Date.now(); document.getElementById('mgBar').style.width = Math.max(0, left / 50) + '%'; if (left <= 0) finishMinigame(false); } }
+document.getElementById('mgBtns').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (b) { e.preventDefault(); mgInput(b.dataset.d); } });
+
 // ---------- local player ----------
 function myStatus() {
-  if (S.isHost && S.sim) { const p = S.sim.players[S.mySlot]; return p ? [p.st, Math.max(0, (p.until || 0) - Date.now()), p.bron ? 1 : 0, p.cst || 0, p.x, p.y] : [4, 0, 0, 0, 0, 0]; }
+  if (S.isHost && S.sim) { const p = S.sim.players[S.mySlot]; return p ? [p.st, Math.max(0, (p.until || 0) - Date.now()), p.bron ? 1 : 0, p.cst || 0, p.x, p.y, p.escUsed ? 1 : 0] : [4, 0, 0, 0, 0, 0, 1]; }
   const s = S.snap && Array.isArray(S.snap.s) ? S.snap.s[S.mySlot] : null;
   if (!Array.isArray(s)) return [0, 0];
   const el = Date.now() - S.snapAt;
-  return [num(s[0], 0), Math.max(0, num(s[1], 0) - el), num(s[2], 0), num(s[3], 2), num(s[4], S.me.x), num(s[5], S.me.y)];
+  return [num(s[0], 0), Math.max(0, num(s[1], 0) - el), num(s[2], 0), num(s[3], 2), num(s[4], S.me.x), num(s[5], S.me.y), num(s[6], 1)];
 }
 function endSprint() { const m = S.me; if (!m.sprinting && m.sprintLeft >= SPR_D) return; m.sprinting = false; m.sprintLeft = 0; m.fatUntil = Date.now() + FAT_MS; }
 function updateLocal(dt) {
-  const m = S.me, [st, rem, br, cst, sx, sy] = myStatus(), now = Date.now();
+  const m = S.me, [st, rem, br, cst, sx, sy, eu] = myStatus(), now = Date.now();
+  if (MG.active) return;
   if (br !== (m.lastBron || 0)) {
     if (br) toast('Ти підібрав бронь! Якщо спіймають, одразу відпустять.');
     else if (st === 0 || st === 1) toast('Бронь врятувала: тебе відпустили, але її більше немає.');
@@ -846,7 +1031,8 @@ function updateLocal(dt) {
   }
   if (st !== m.lastSt) {
     if (st === 1) { m.sprinting = false; toast('Тебе збила машина! 3 секунди не рухаєшся'); }
-    if (st === 2) { m.sprinting = false; toast('Тебе спіймав ТЦК! Чекай на бус, повезуть на базу…'); }
+    if (st === 2) { m.sprinting = false; m.escOk = false; toast('Тебе спіймав ТЦК! Чекай на бус, повезуть на базу…'); }
+    if (st === 0 && m.lastSt === 2) { [m.x, m.y] = [ESC_OUT.x, ESC_OUT.y]; m.placed = false; m.escOk = false; toast('Ти втік із ТЦК! Біжи на каву, поки не помітили.'); }
     if (st === 3) toast('Ти на каві! Перемога твоя.');
     m.lastSt = st;
   }
@@ -855,9 +1041,11 @@ function updateLocal(dt) {
   if (st === 1) return;
   if (st === 2) {
     if (cst < 2) { m.x = sx; m.y = sy; m.placed = false; return; }
-    if (!m.placed) { [m.x, m.y] = BASE_SPOTS[S.mySlot]; m.placed = true; }
+    if (m.escOk) return;
+    if (!m.placed) { [m.x, m.y] = BASE_SPOTS[S.mySlot]; m.placed = true; if (!eu && !m.escTried) note('У правій стіні бази тріщина «А». Підійди до неї: одна спроба втекти.', 5000); }
     m.x = clamp(m.x + ix * V * 0.6 * dt, bx + 30, bx + 5 * T - 30);
     m.y = clamp(m.y + iy * V * 0.6 * dt, by + 30, by + 4 * T - 30);
+    if (!eu && !m.escTried && dist(m, CRACK_IN) < 50) startMinigame();
     return;
   }
   const fat = now < m.fatUntil;
@@ -873,7 +1061,8 @@ function updateLocal(dt) {
 // ---------- room / lobby ----------
 const $ = id => document.getElementById(id);
 const nickEl = $('nick'); nickEl.value = S.nick;
-nickEl.addEventListener('input', () => { S.nick = nickEl.value.trim().slice(0, 16) || 'Гравець'; saveNick(S.nick); pushLobbyPresence(); });
+nickEl.addEventListener('input', () => { S.nick = nickEl.value.trim().slice(0, 24) || randomNick(); saveNick(S.nick); pushLobbyPresence(); });
+$('nickRoll').addEventListener('click', () => { S.nick = randomNick(); nickEl.value = S.nick; saveNick(S.nick); pushLobbyPresence(); });
 $('readyBtn').addEventListener('click', () => { S.ready = !S.ready; pushLobbyPresence(); renderLobby(); });
 $('startBtn').addEventListener('click', startMatch);
 $('toLobby').addEventListener('click', backToLobby);
@@ -890,7 +1079,7 @@ function renderLobby() {
   $('net').textContent = busy ? 'Зараз уже йде матч. Можна почати свій або зачекати.' : `У кімнаті: ${peers.length}. Хто натисне «Почати матч», той і хост.`;
   for (const p of peers) {
     const d = document.createElement('div'); d.className = 'peer';
-    const n = document.createElement('span'); n.textContent = (p.presence && typeof p.presence.nick === 'string' ? p.presence.nick.slice(0, 16) : 'Гравець') + (p.sameTab ? ' (ти)' : '');
+    const n = document.createElement('span'); n.textContent = (p.presence && typeof p.presence.nick === 'string' ? p.presence.nick.slice(0, 24) : 'Гравець') + (p.sameTab ? ' (ти)' : '');
     const st = document.createElement('span'); const r = p.presence && p.presence.ready; st.className = 'st' + (r ? ' ready' : ''); st.textContent = r ? 'готовий' : 'не готовий';
     d.append(n, st); list.append(d);
   }
@@ -911,11 +1100,13 @@ function startMatch() {
 function enterMatch(match, host) {
   S.match = match; S.isHost = host; S.hostLabel = match.host;
   S.mySlot = match.slots.indexOf(S.myLabel);
+  setMap(genMap(match.seed));
   S.stat = renderStatic(match.cafe);
   const mc = $('mini'); const mg = mc.getContext('2d'); mg.clearRect(0, 0, 340, 340); mg.drawImage(S.stat, 0, 0, 340, 340);
   S.statMini = document.createElement('canvas'); S.statMini.width = 340; S.statMini.height = 340; S.statMini.getContext('2d').drawImage(S.stat, 0, 0, 340, 340);
   const [x, y] = spawnOf(S.mySlot);
-  Object.assign(S.me, { x, y, sprinting: false, sprintLeft: SPR_D, fatUntil: 0, placed: false, lastSt: 0 });
+  Object.assign(S.me, { x, y, sprinting: false, sprintLeft: SPR_D, fatUntil: 0, placed: false, lastSt: 0, escTried: false, escOk: false, lastBron: 0 });
+  S.escMsg = null; MG.active = false; $('mg').hidden = true;
   S.snap = null; S.lastQ = -1; S.disp = { cars: [], peds: [], pl: [{}, {}, {}, {}] };
   if (host) S.sim = newSim(match); else S.sim = null;
   S.mode = 'play';
@@ -926,6 +1117,7 @@ function enterMatch(match, host) {
 }
 function backToLobby() {
   if (S.match) S.ignored.add(S.match.id);
+  MG.active = false; $('mg').hidden = true;
   if (S.isHost && S.room) S.room.presence({ m: null, w: null, g: null }).catch(() => {});
   else if (S.room) S.room.presence({ g: null }).catch(() => {});
   document.body.classList.remove('playing');
@@ -949,7 +1141,7 @@ function scanRoom() {
     cands.sort((a, b) => num(a.presence.m.t0, 0) - num(b.presence.m.t0, 0));
     if (cands.length) {
       const m = cands[0].presence.m;
-      const match = { id: String(m.id), seed: 0, cafe: clamp(Math.floor(num(m.cafe, 1)), 0, 2), t0: num(m.t0, 0), slots: m.slots.slice(0, 4).map(s => typeof s === 'string' ? s : null), bots: Array.isArray(m.bots) ? m.bots.map(b => num(b, -1)) : [], ph: 'play', host: cands[0].peer };
+      const match = { id: String(m.id), seed: Math.floor(num(m.seed, 1)) >>> 0, cafe: clamp(Math.floor(num(m.cafe, 1)), 0, 2), t0: num(m.t0, 0), slots: m.slots.slice(0, 4).map(s => typeof s === 'string' ? s : null), bots: Array.isArray(m.bots) ? m.bots.map(b => num(b, -1)) : [], ph: 'play', host: cands[0].peer };
       enterMatch(match, false);
     }
   }
@@ -1076,9 +1268,10 @@ function netTick(dt) {
   netT = 0;
   const now = Date.now();
   const g = { m: S.match.id, x: Math.round(S.me.x), y: Math.round(S.me.y), sp: S.me.sprinting ? 1 : 0, fa: now < S.me.fatUntil ? 1 : 0, pl: S.me.placed ? 1 : 0 };
+  if (S.escMsg) g.esc = S.escMsg;
   if (S.isHost) {
     const m = S.match;
-    S.room.presence({ m: { id: m.id, cafe: m.cafe, t0: m.t0, slots: m.slots, bots: m.bots, ph: m.ph, host: m.host, res: m.res || null }, w: packWorld(), g }).catch(() => {});
+    S.room.presence({ m: { id: m.id, seed: m.seed, cafe: m.cafe, t0: m.t0, slots: m.slots, bots: m.bots, ph: m.ph, host: m.host, res: m.res || null }, w: packWorld(), g }).catch(() => {});
   } else S.room.presence({ g }).catch(() => {});
 }
 function clientRead() {
@@ -1160,12 +1353,12 @@ function worldView(dt) {
 }
 function nickOf(s) {
   if (!S.match) return '';
-  if (S.match.bots.includes(s)) return 'Бот ' + (s + 1);
+  if (S.match.bots.includes(s)) return randomNick(rng((S.match.seed + s * 1013) >>> 0));
   const label = S.match.slots[s];
   if (label === S.myLabel) return S.nick;
   const p = S.room && S.room.peers().find(q => q.peer === label);
   const n = p && p.presence && p.presence.nick;
-  return typeof n === 'string' ? n.slice(0, 16) : 'Гравець ' + (s + 1);
+  return typeof n === 'string' ? n.slice(0, 24) : 'Гравець ' + (s + 1);
 }
 function drawCar(c) {
   const ang = [0, Math.PI, Math.PI / 2, -Math.PI / 2][c.o] || 0;
@@ -1246,6 +1439,13 @@ function drawFx(f) {
     ctx.fillStyle = `rgba(253,230,138,${a})`; ctx.font = '800 18px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('БРОНЬ! ВІДПУСТИЛИ', f.x, f.y - 40 - f.age / 40);
     return;
   }
+  if (f.k === 3) {
+    if (f.age > 1600) return;
+    const a = 1 - f.age / 1600;
+    ctx.strokeStyle = `rgba(110,231,160,${a})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, 20 + f.age / 12, 0, 7); ctx.stroke();
+    ctx.fillStyle = `rgba(110,231,160,${a})`; ctx.font = '800 18px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('ВТІК!', f.x, f.y - 40 - f.age / 40);
+    return;
+  }
   if (f.k === 2) {
     if (f.age > 900) return;
     const a = 1 - f.age / 900;
@@ -1267,7 +1467,7 @@ function updateHud(view, dt) {
   for (const p of view.players) {
     const c = document.createElement('div'); c.className = 'chip' + (p.slot === S.mySlot ? ' me' : '');
     const d = document.createElement('span'); d.className = 'dot'; d.style.background = PC[p.slot];
-    const tx2 = document.createElement('span'); tx2.textContent = `${p.nick} · ${p.st === 0 && p.sp ? 'біжить' : p.st === 0 && p.fa ? 'втомився' : ST_TXT[p.st] || ''}${p.br ? ' · бронь' : ''}`;
+    const tx2 = document.createElement('span'); tx2.textContent = `${p.nick}${S.match && S.match.bots.includes(p.slot) ? ' (бот)' : ''} · ${p.st === 0 && p.sp ? 'біжить' : p.st === 0 && p.fa ? 'втомився' : ST_TXT[p.st] || ''}${p.br ? ' · бронь' : ''}`;
     c.append(d, tx2); chips.append(c);
   }
   let el = 0;
@@ -1283,11 +1483,11 @@ function updateHud(view, dt) {
 function drawMini(view) {
   const mc = $('mini'), g = mc.getContext('2d');
   g.drawImage(S.statMini, 0, 0);
-  const k = 340 / MW;
-  if (view.leaf) { g.fillStyle = '#FDE68A'; g.strokeStyle = '#1D2132'; g.lineWidth = 2; g.fillRect(view.leaf.x * k - 7, view.leaf.y * k - 9, 14, 18); g.strokeRect(view.leaf.x * k - 7, view.leaf.y * k - 9, 14, 18); }
+  const k = 340 / MW, ky = 340 / MH;
+  if (view.leaf) { g.fillStyle = '#FDE68A'; g.strokeStyle = '#1D2132'; g.lineWidth = 2; g.fillRect(view.leaf.x * k - 7, view.leaf.y * ky - 9, 14, 18); g.strokeRect(view.leaf.x * k - 7, view.leaf.y * ky - 9, 14, 18); }
   for (const p of view.players) {
     g.fillStyle = PC[p.slot]; g.strokeStyle = p.slot === S.mySlot ? '#FFFFFF' : '#1D2132'; g.lineWidth = 3;
-    g.beginPath(); g.arc(p.x * k, p.y * k, p.slot === S.mySlot ? 9 : 7, 0, 7); g.fill(); g.stroke();
+    g.beginPath(); g.arc(p.x * k, p.y * ky, p.slot === S.mySlot ? 9 : 7, 0, 7); g.fill(); g.stroke();
   }
 }
 function drawGuide(view) {
@@ -1323,6 +1523,7 @@ function render(dt, t) {
   for (const f of view.fx) drawFx(f);
   const ord = view.players.slice().sort((a, b) => (a.slot === S.mySlot) - (b.slot === S.mySlot));
   for (const p of ord) drawPlayer(p, t);
+  { const [st2, , , cst2, , , eu2] = myStatus(); if (st2 === 2 && cst2 === 2 && !eu2 && !S.me.escTried) { const pr = 34 + Math.sin(t / 200) * 6; ctx.strokeStyle = 'rgba(253,230,138,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(CRACK_IN.x, CRACK_IN.y, pr, 0, 7); ctx.stroke(); } }
   drawGuide(view);
   updateHud(view, dt);
   drawMini(view);
@@ -1343,13 +1544,13 @@ function frame(t) {
   if (S.mode !== 'lobby' && S.match) {
     clientRead();
     if (S.mode === 'play' || S.mode === 'end') {
-      if (S.mode === 'play') updateLocal(dt);
+      if (S.mode === 'play') { mgTick(); updateLocal(dt); }
       if (S.isHost && S.sim) {
         hostTick(dt);
         if (S.match.ph === 'end' && S.mode === 'play') { S.mode = 'end'; showEnd(S.match.res); }
       }
       netTick(dt);
-      if (S.mode === 'end' && S.isHost && S.room) { netT += dt; if (netT > 0.3) { netT = 0; const m = S.match; S.room.presence({ m: { id: m.id, cafe: m.cafe, t0: m.t0, slots: m.slots, bots: m.bots, ph: m.ph, host: m.host, res: m.res || null } }).catch(() => {}); } }
+      if (S.mode === 'end' && S.isHost && S.room) { netT += dt; if (netT > 0.3) { netT = 0; const m = S.match; S.room.presence({ m: { id: m.id, seed: m.seed, cafe: m.cafe, t0: m.t0, slots: m.slots, bots: m.bots, ph: m.ph, host: m.host, res: m.res || null } }).catch(() => {}); } }
     }
   }
   render(dt, t);
