@@ -148,7 +148,9 @@ body{-webkit-touch-callout:none}
           <li>На зебрі машини зупиняються. Поза нею можуть збити.</li>
           <li>Буси ТЦК (їх троє) помічають за 3 клітинки й відстають після 5. Працівники (теж троє) помічають за 2 й відстають після 4.</li>
           <li>Карта щоматчу трохи інша: дороги, проходи дворами й дерева змінюються. Прохід до кав'ярні є завжди, але частина провулків веде в тупик.</li>
-          <li>На базі ТЦК у правій стіні є тріщина «А». Підійди до неї й за 5 секунд повтори 6 стрілок: вийде, опинишся по той бік стіни. Спроба одна на матч.</li>
+          <li>На базі ТЦК у правій стіні є тріщина «А». Підійди до неї й за 5 секунд повтори 6 стрілок: вийде, опинишся по той бік стіни. Спроба одна на матч, і почати її треба протягом 10 секунд після того, як тебе привезли. Поки хтось на базі ще може спробувати, матч не закінчується.</li>
+          <li>Якщо ТЦК женеться за кимось, а ближче проходить інший гравець, він перемикається на нього.</li>
+          <li>Кожен матч випадково обирає день чи ніч і погоду: ясно, дощ, сніг або туман.</li>
           <li>Спійманого тримають, поки не під'їде бус, а потім везуть на базу. Якщо спіймають усіх, це поразка.</li>
           <li>На карті лежить листочок «БРОНЬ». З ним тебе одразу відпустять, але бронь пропаде й з'явиться деінде.</li>
         </ul>
@@ -201,6 +203,7 @@ const V = 180, SPR_M = 1.5, SPR_D = 8 * T, FAT_MS = 10000, FAT_M = 1 / 1.5, TCC_
 const VAN_SEE = 3 * T, VAN_LOSE = 5 * T, WK_SEE = 2 * T, WK_LOSE = 4 * T;
 const HIDE_MS = 5000, STUN_MS = 3000, IMMUNE_MS = 1500, CAP_MS = 1400, GRACE_MS = 3000;
 const PR = 14;
+const ESC_WINDOW = 10000;
 const CAFE_NAMES = ["Кав'ярня A", "Кав'ярня B", "Кав'ярня C"];
 const bx = BASE[0] * T, by = BASE[1] * T;
 const BASE_SPOTS = [[bx + 50, by + 50], [bx + 250, by + 50], [bx + 50, by + 190], [bx + 250, by + 190]];
@@ -367,7 +370,12 @@ function tryGenMap(seed, force) {
   for (let k = 0; k < 12; k++) { const x = ri(0, W - 1), y = ri(0, 2); if (isG(x, y)) trees.add(x + ',' + y); }
   const nearCafe = (x, y) => CAFES.some(c => x >= c[0] - 1 && x <= c[0] + c[2] && y >= c[1] - 1 && y <= c[1] + c[3]);
   for (let k = 0; k < 40; k++) { const x = ri(0, W - 1), y = ri(44, H - 1); if (isG(x, y) && !nearCafe(x, y)) trees.add(x + ',' + y); }
-  const solidAt = (x, y) => 'BHCT'.includes(g[y][x]) || trees.has(x + ',' + y);
+  const props = [], propSet = new Set();
+  const addProp = (k, x, y) => { if (isG(x, y) && !trees.has(x + ',' + y) && !propSet.has(x + ',' + y)) { props.push([k, x, y]); propSet.add(x + ',' + y); } };
+  for (let k = 0; k < 2; k++) { const x = ri(2, W - 3), y = ri(47, 48); if (!nearCafe(x, y)) addProp('fountain', x, y); }
+  for (let k = 0; k < 3; k++) { const x = ri(1, W - 2), y = ri(43, 44); if (!nearCafe(x, y)) addProp('kiosk', x, y); }
+  for (let k = 0; k < 2; k++) { const x = ri(1, W - 2); if (!HOUSES.some(h => x >= h[0] - 1 && x <= h[0] + h[2])) addProp('kiosk', x, 0); }
+  const solidAt = (x, y) => 'BHCT'.includes(g[y][x]) || trees.has(x + ',' + y) || propSet.has(x + ',' + y);
   const seen = new Uint8Array(W * H), q = [[49, 20]]; seen[20 * W + 49] = 1;
   while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of NB) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const k = ny * W + nx; if (seen[k] || solidAt(nx, ny)) continue; seen[k] = 1; q.push([nx, ny]); } }
   const ok = HOUSES.every(h => seen[3 * W + h[0] + 1]) && CAFES.every(c => seen[(c[1] - 1) * W + c[0] + 1]);
@@ -383,43 +391,55 @@ function tryGenMap(seed, force) {
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) vis[(y + j) * W + x + i] = 1;
     buildings.push([x, y, w, h]);
   }
-  return { seed, grid: g.map(r => r.join('')), trees: [...trees].map(s => s.split(',').map(Number)), buildings, loops, lamps, decor };
+  return { seed, grid: g.map(r => r.join('')), trees: [...trees].map(s => s.split(',').map(Number)), props, buildings, loops, lamps, decor };
 }
 function genMap(seed) {
   for (let a = 0; a < 40; a++) { const m = tryGenMap((seed + a * 7919) >>> 0); if (m) return m; }
   return tryGenMap(seed >>> 0, true);
 }
-function setMap(m) { M = m; treeSet = new Set(m.trees.map(t => t[0] + ',' + t[1])); }
+function setMap(m) { M = m; treeSet = new Set(m.trees.map(t => t[0] + ',' + t[1]).concat((m.props || []).map(p => p[1] + ',' + p[2]))); }
 setMap(genMap(1));
 
 // ---------- static map render ----------
-function renderStatic(cafeIdx) {
+const PAL = {
+  night: { bg: '#161A28', lawn: '#33463E', blade: '#3E5549', pave: '#5E6480', paveLine: '#4A4F68', cobBg: '#4E536C', cob: ['#6D7392', '#676D8C', '#646A88', '#71779A'], road: '#1D2132', dash: 'rgba(233,228,212,.55)', curb: '#9AA0BC', cross: '#EDE8DA', bShadow: 'rgba(20,23,38,.5)', bOuter: '#4F5275', bInner: '#5E6189', winOn: '#FDE68A', winOff: '#3E4163', winP: 0.38, tree1: '#3F6B52', tree2: '#5C8C6C', lamps: true, stone: '#6B7180', water: '#2F5E86', kiosk: '#8C7F6A' },
+  day: { bg: '#9FB39A', lawn: '#8DBF78', blade: '#7DAE68', pave: '#D6CFC0', paveLine: '#BBB19F', cobBg: '#B3A995', cob: ['#CEC4B1', '#C7BDA9', '#C2B8A4', '#D2C9B6'], road: '#4B505D', dash: 'rgba(255,255,255,.8)', curb: '#EEEBE3', cross: '#F6F4EF', bShadow: 'rgba(30,30,40,.22)', bOuter: '#A2917E', bInner: '#BCAE99', winOn: '#A9CBEA', winOff: '#86A6C2', winP: 0.5, tree1: '#4A8746', tree2: '#6CAE5E', lamps: false, stone: '#A7ADB8', water: '#6FB7E0', kiosk: '#E9D8B4' }
+};
+const ENV_TXT = { day: 'День', night: 'Ніч', clear: 'ясно', rain: 'дощ', snow: 'сніг', fog: 'туман' };
+function envOf(seed) { const r = rng((seed ^ 0x51ED270B) >>> 0); return { tod: r() < 0.5 ? 'day' : 'night', weather: ['clear', 'rain', 'snow', 'fog'][Math.floor(r() * 4)] }; }
+function envPal(env) {
+  const p = Object.assign({}, PAL[env.tod]);
+  if (env.weather === 'snow') { if (env.tod === 'day') { p.lawn = '#E8EEF1'; p.blade = '#D3DCE2'; p.tree2 = '#E6EEF2'; } else { p.lawn = '#5B6679'; p.blade = '#6A7589'; p.tree2 = '#9AA6B8'; } }
+  if (env.weather === 'rain') p.road = env.tod === 'day' ? '#3F4450' : '#171B2A';
+  return p;
+}
+function renderStatic(cafeIdx, env) {
+  env = env || { tod: 'night', weather: 'clear' };
+  const P = envPal(env);
   const cv = document.createElement('canvas'); cv.width = MW; cv.height = MH;
   const g = cv.getContext('2d');
   const pat = (w, h, f) => { const pc = document.createElement('canvas'); pc.width = w; pc.height = h; f(pc.getContext('2d')); return g.createPattern(pc, 'repeat'); };
-  const lawn = pat(40, 40, x => { x.fillStyle = '#33463E'; x.fillRect(0, 0, 40, 40); x.strokeStyle = '#3E5549'; x.lineWidth = 2; x.beginPath(); x.moveTo(8, 14); x.lineTo(11, 8); x.lineTo(14, 14); x.moveTo(26, 32); x.lineTo(29, 26); x.lineTo(32, 32); x.stroke(); });
-  const pave = pat(30, 20, x => { x.fillStyle = '#5E6480'; x.fillRect(0, 0, 30, 20); x.strokeStyle = '#4A4F68'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(0, .75); x.lineTo(30, .75); x.moveTo(0, 10.75); x.lineTo(30, 10.75); x.moveTo(.75, 0); x.lineTo(.75, 10); x.moveTo(15.75, 10); x.lineTo(15.75, 20); x.stroke(); });
-  const cob = pat(24, 24, x => { x.fillStyle = '#4E536C'; x.fillRect(0, 0, 24, 24); [[1.5, 1.5, '#6D7392'], [12.5, 1.5, '#676D8C'], [1.5, 12.5, '#646A88'], [12.5, 12.5, '#71779A']].forEach(([a, b, c]) => { x.fillStyle = c; rr(x, a, b, 10, 10, 3.5); x.fill(); }); });
+  const lawn = pat(40, 40, x => { x.fillStyle = P.lawn; x.fillRect(0, 0, 40, 40); x.strokeStyle = P.blade; x.lineWidth = 2; x.beginPath(); x.moveTo(8, 14); x.lineTo(11, 8); x.lineTo(14, 14); x.moveTo(26, 32); x.lineTo(29, 26); x.lineTo(32, 32); x.stroke(); });
+  const pave = pat(30, 20, x => { x.fillStyle = P.pave; x.fillRect(0, 0, 30, 20); x.strokeStyle = P.paveLine; x.lineWidth = 1.5; x.beginPath(); x.moveTo(0, .75); x.lineTo(30, .75); x.moveTo(0, 10.75); x.lineTo(30, 10.75); x.moveTo(.75, 0); x.lineTo(.75, 10); x.moveTo(15.75, 10); x.lineTo(15.75, 20); x.stroke(); });
+  const cob = pat(24, 24, x => { x.fillStyle = P.cobBg; x.fillRect(0, 0, 24, 24); [[1.5, 1.5, 0], [12.5, 1.5, 1], [1.5, 12.5, 2], [12.5, 12.5, 3]].forEach(([a, b, c]) => { x.fillStyle = P.cob[c]; rr(x, a, b, 10, 10, 3.5); x.fill(); }); });
   g.fillStyle = lawn; g.fillRect(0, 0, MW, MH);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const t = tileAt(x, y);
     if (t === 'S') { g.fillStyle = pave; g.fillRect(x * T, y * T, T, T); }
     else if (t === 'P') { g.fillStyle = cob; g.fillRect(x * T, y * T, T, T); }
-    else if (isRoad(t)) { g.fillStyle = '#1D2132'; g.fillRect(x * T, y * T, T, T); }
+    else if (isRoad(t)) { g.fillStyle = P.road; g.fillRect(x * T, y * T, T, T); }
   }
-  // lane dashes
-  g.strokeStyle = 'rgba(233,228,212,.55)'; g.lineWidth = 3; g.setLineDash([26, 18]);
+  g.strokeStyle = P.dash; g.lineWidth = 3; g.setLineDash([26, 18]);
   for (const top of RROWS) {
     let x = 0;
     while (x < W) { if (tileAt(x, top) === 'R') { const s = x; while (x < W && tileAt(x, top) === 'R') x++; g.beginPath(); g.moveTo(s * T + 8, (top + 1) * T); g.lineTo(x * T - 8, (top + 1) * T); g.stroke(); } else x++; }
   }
-  for (const [left, r0, r1] of M.loops.map(L => [(L.down - 30) / T, 0, H])) {
-    let y = r0;
-    while (y < r1) { if (tileAt(left, y) === 'V') { const s = y; while (y < r1 && tileAt(left, y) === 'V') y++; g.beginPath(); g.moveTo((left + 1) * T, s * T + 8); g.lineTo((left + 1) * T, y * T - 8); g.stroke(); } else y++; }
+  for (const L of M.loops) {
+    const left = (L.down - 30) / T; let y = 0;
+    while (y < H) { if (tileAt(left, y) === 'V') { const s = y; while (y < H && tileAt(left, y) === 'V') y++; g.beginPath(); g.moveTo((left + 1) * T, s * T + 8); g.lineTo((left + 1) * T, y * T - 8); g.stroke(); } else y++; }
   }
   g.setLineDash([]);
-  // curbs
-  g.strokeStyle = '#9AA0BC'; g.lineWidth = 5;
+  g.strokeStyle = P.curb; g.lineWidth = 5;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (!'SP'.includes(tileAt(x, y))) continue;
     for (const [dx, dy] of NB) {
@@ -431,54 +451,85 @@ function renderStatic(cafeIdx) {
       g.stroke();
     }
   }
-  // crosswalks
-  g.fillStyle = '#EDE8DA';
+  g.fillStyle = P.cross;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const t = tileAt(x, y);
     if (t === 'Z') for (let k = 0; k < 4; k++) g.fillRect(x * T + 8, y * T + 5 + k * 14, T - 16, 8);
     if (t === 'Y') for (let k = 0; k < 4; k++) g.fillRect(x * T + 5 + k * 14, y * T + 8, 8, T - 16);
   }
-  // lamps
   for (const [x, y] of M.lamps) {
-    const cx = x * T + 30, cy = y * T + 30, gr = g.createRadialGradient(cx, cy, 0, cx, cy, 70);
-    gr.addColorStop(0, 'rgba(253,230,138,.22)'); gr.addColorStop(1, 'rgba(253,230,138,0)');
-    g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, 70, 0, 7); g.fill();
-    g.fillStyle = '#FDE68A'; g.beginPath(); g.arc(cx, cy, 4, 0, 7); g.fill();
+    const cx = x * T + 30, cy = y * T + 30;
+    if (P.lamps) {
+      const gr = g.createRadialGradient(cx, cy, 0, cx, cy, 70);
+      gr.addColorStop(0, 'rgba(253,230,138,.22)'); gr.addColorStop(1, 'rgba(253,230,138,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, 70, 0, 7); g.fill();
+      g.fillStyle = '#FDE68A'; g.beginPath(); g.arc(cx, cy, 4, 0, 7); g.fill();
+    } else { g.fillStyle = '#5B6070'; g.beginPath(); g.arc(cx, cy, 4, 0, 7); g.fill(); }
   }
-  // buildings
+  // будівлі з вікнами, дверима й смітниками
   const R = rng(7);
+  const walkT = (x, y) => x >= 0 && y >= 0 && x < W && y < H && 'SPG'.includes(tileAt(x, y));
   for (const [c, r, w, h] of M.buildings) {
     const X = c * T + 3, Y = r * T + 3, Wd = w * T - 6, Hd = h * T - 6;
-    g.fillStyle = 'rgba(20,23,38,.5)'; rr(g, X + 4, Y + 6, Wd, Hd, 6); g.fill();
-    g.fillStyle = '#4F5275'; rr(g, X, Y, Wd, Hd, 6); g.fill();
-    g.fillStyle = '#5E6189'; rr(g, X + 4, Y + 4, Wd - 8, Hd - 8, 4); g.fill();
+    g.fillStyle = P.bShadow; rr(g, X + 4, Y + 6, Wd, Hd, 6); g.fill();
+    g.fillStyle = P.bOuter; rr(g, X, Y, Wd, Hd, 6); g.fill();
+    g.fillStyle = P.bInner; rr(g, X + 4, Y + 4, Wd - 8, Hd - 8, 4); g.fill();
     for (let yy = Y + 12; yy + 10 <= Y + Hd - 8; yy += 22) for (let xx = X + 12; xx + 12 <= X + Wd - 8; xx += 22) {
-      g.fillStyle = R() < 0.38 ? '#FDE68A' : '#3E4163'; rr(g, xx, yy, 12, 10, 1.5); g.fill();
+      g.fillStyle = R() < P.winP ? P.winOn : P.winOff; rr(g, xx, yy, 12, 10, 1.5); g.fill();
     }
+    const sides = [];
+    for (let i = c; i < c + w; i++) { if (walkT(i, r + h)) sides.push(['b', i]); if (walkT(i, r - 1)) sides.push(['t', i]); }
+    for (let j = r; j < r + h; j++) { if (walkT(c - 1, j)) sides.push(['l', j]); if (walkT(c + w, j)) sides.push(['r', j]); }
+    if (!sides.length) continue;
+    const [sd, k] = sides[Math.floor(R() * sides.length)];
+    let dx, dy, dw, dh, bxx, byy;
+    if (sd === 'b') { dx = k * T + 21; dy = Y + Hd - 12; dw = 18; dh = 14; bxx = k * T + 42; byy = Y + Hd + 2; }
+    else if (sd === 't') { dx = k * T + 21; dy = Y - 2; dw = 18; dh = 14; bxx = k * T + 42; byy = Y - 14; }
+    else if (sd === 'l') { dx = X - 2; dy = k * T + 21; dw = 14; dh = 18; bxx = X - 14; byy = k * T + 42; }
+    else { dx = X + Wd - 12; dy = k * T + 21; dw = 14; dh = 18; bxx = X + Wd + 2; byy = k * T + 42; }
+    g.fillStyle = '#6B4B3A'; rr(g, dx, dy, dw, dh, 2); g.fill();
+    g.fillStyle = P.lamps ? '#FDE68A' : '#D9C9A8'; g.fillRect(dx + dw / 2 - 2, dy + dh / 2 - 2, 4, 4);
+    if (R() < 0.7) { g.fillStyle = '#3F6D55'; rr(g, bxx, byy, 12, 12, 2); g.fill(); g.fillStyle = '#2E5341'; g.fillRect(bxx - 1, byy - 2, 14, 4); }
   }
-  // trees
   for (const [x, y] of M.trees) {
     const cx = x * T + 30, cy = y * T + 30;
-    g.fillStyle = '#3F6B52'; g.beginPath(); g.arc(cx, cy, 24, 0, 7); g.fill();
-    g.fillStyle = '#5C8C6C'; g.beginPath(); g.arc(cx - 6, cy - 6, 13, 0, 7); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.arc(cx + 4, cy + 5, 24, 0, 7); g.fill();
+    g.fillStyle = P.tree1; g.beginPath(); g.arc(cx, cy, 24, 0, 7); g.fill();
+    g.fillStyle = P.tree2; g.beginPath(); g.arc(cx - 6, cy - 6, 13, 0, 7); g.fill();
   }
-  // courtyard details
+  // кіоски й фонтани
+  for (const [k, x, y] of (M.props || [])) {
+    const cx = x * T + 30, cy = y * T + 30;
+    if (k === 'fountain') {
+      g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.arc(cx + 3, cy + 4, 27, 0, 7); g.fill();
+      g.fillStyle = P.stone; g.beginPath(); g.arc(cx, cy, 27, 0, 7); g.fill();
+      g.fillStyle = P.water; g.beginPath(); g.arc(cx, cy, 20, 0, 7); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, 13, 0, 7); g.stroke();
+      g.fillStyle = P.stone; g.beginPath(); g.arc(cx, cy, 6, 0, 7); g.fill();
+      g.fillStyle = '#E6F4FF'; g.beginPath(); g.arc(cx, cy, 3, 0, 7); g.fill();
+    } else {
+      g.fillStyle = 'rgba(0,0,0,.2)'; rr(g, cx - 20, cy - 13, 44, 34, 4); g.fill();
+      g.fillStyle = P.kiosk; rr(g, cx - 22, cy - 16, 44, 34, 4); g.fill();
+      for (let s = 0; s < 4; s++) { g.fillStyle = s % 2 ? '#FFF4E6' : (x % 2 ? '#3A7CA5' : '#E4572E'); g.fillRect(cx - 22 + s * 11, cy - 16, 11, 10); }
+      g.fillStyle = P.lamps ? '#FDE68A' : '#A9CBEA'; g.fillRect(cx - 14, cy - 2, 28, 10);
+      g.fillStyle = '#1D2132'; g.font = '800 8px Manrope, sans-serif'; g.textAlign = 'center'; g.fillText('КІОСК', cx, cy + 15);
+    }
+  }
   for (const [k, x, y] of M.decor) {
     if (k === 'sand') { g.fillStyle = '#C9B38A'; g.strokeStyle = '#8C7A5A'; g.lineWidth = 3; rr(g, x * T + 12, y * T + 12, 2 * T - 24, 2 * T - 24, 8); g.fill(); g.stroke(); }
     else { g.fillStyle = '#8C6B4F'; rr(g, x * T + 10, y * T + 22, 2 * T - 20, 14, 4); g.fill(); }
   }
-  // houses
   g.textAlign = 'center';
   HOUSES.forEach(([c, r, w, h], i) => {
     const X = c * T, Y = r * T, Wd = w * T, Hd = h * T, rh = Hd - 34;
-    g.save(); g.shadowColor = PC[i]; g.shadowBlur = 22; g.fillStyle = PC[i]; rr(g, X, Y, Wd, rh + 6, 6); g.fill(); g.restore();
+    g.save(); g.shadowColor = PC[i]; g.shadowBlur = P.lamps ? 22 : 8; g.fillStyle = PC[i]; rr(g, X, Y, Wd, rh + 6, 6); g.fill(); g.restore();
     g.fillStyle = PCD[i]; g.fillRect(X, Y + rh / 2, Wd, rh / 2);
     g.strokeStyle = 'rgba(29,33,50,.18)'; g.lineWidth = 2;
     for (let k = 1; k < 8; k++) { const yy = Y + k * rh / 8; g.beginPath(); g.moveTo(X + 4, yy); g.lineTo(X + Wd - 4, yy); g.stroke(); }
     g.fillStyle = '#6B4B3A'; g.fillRect(X + Wd - 44, Y + 10, 18, 22);
     g.fillStyle = '#E9E1D0'; g.fillRect(X, Y + rh, Wd, 34);
     for (const wx of [X + 18, X + Wd - 50]) {
-      g.fillStyle = '#FDE68A'; g.fillRect(wx, Y + Hd - 27, 32, 20);
+      g.fillStyle = P.lamps ? '#FDE68A' : '#A9CBEA'; g.fillRect(wx, Y + Hd - 27, 32, 20);
       g.strokeStyle = '#6B4B3A'; g.lineWidth = 3; g.strokeRect(wx, Y + Hd - 27, 32, 20);
       g.lineWidth = 2; g.beginPath(); g.moveTo(wx + 16, Y + Hd - 27); g.lineTo(wx + 16, Y + Hd - 7); g.stroke();
     }
@@ -486,7 +537,6 @@ function renderStatic(cafeIdx) {
     g.fillStyle = '#FDE68A'; g.beginPath(); g.arc(X + Wd / 2 + 7, Y + Hd - 15, 2.5, 0, 7); g.fill();
     g.fillStyle = '#1D2132'; g.font = '800 20px Manrope, sans-serif'; g.fillText('Дім ' + (i + 1), X + Wd / 2, Y + 30);
   });
-  // base
   {
     const [c, r, w, h] = BASE, X = c * T, Y = r * T, Wd = w * T, Hd = h * T;
     g.fillStyle = '#3B2A36'; rr(g, X, Y, Wd, Hd, 8); g.fill();
@@ -495,28 +545,34 @@ function renderStatic(cafeIdx) {
     g.fillStyle = '#FCA5A5'; g.font = '800 26px Manrope, sans-serif'; g.fillText('БАЗА ТЦК', X + Wd / 2, Y + 112);
     g.fillStyle = '#F9C6C6'; g.font = '700 15px Manrope, sans-serif'; g.fillText('виходу немає', X + Wd / 2, Y + 142);
     g.fillStyle = '#F87171'; rr(g, X + 120, Y - 4, 60, 12, 3); g.fill();
-    // тріщина в правій стіні (точка А)
     g.strokeStyle = '#0E0B10'; g.lineWidth = 7; g.lineJoin = 'round'; g.beginPath();
     g.moveTo(CRACK.x - 2, CRACK.y - 40); g.lineTo(CRACK.x - 10, CRACK.y - 22); g.lineTo(CRACK.x - 2, CRACK.y - 8); g.lineTo(CRACK.x - 12, CRACK.y + 8); g.lineTo(CRACK.x - 3, CRACK.y + 24); g.lineTo(CRACK.x - 9, CRACK.y + 40); g.stroke();
     g.strokeStyle = '#FCA5A5'; g.lineWidth = 2; g.stroke();
     g.fillStyle = '#FDE68A'; g.beginPath(); g.arc(CRACK.x - 34, CRACK.y - 44, 13, 0, 7); g.fill();
     g.fillStyle = '#1D2132'; g.font = '800 16px Manrope, sans-serif'; g.fillText('А', CRACK.x - 34, CRACK.y - 38);
   }
-  // cafes
+  // кав'ярні: будівля з маркізою, вивіскою, дверима й столиками надворі
   CAFES.forEach(([c, r, w, h], i) => {
-    const X = c * T, Y = r * T, Wd = w * T, Hd = h * T;
-    if (i === cafeIdx) {
-      g.strokeStyle = '#F4A07A'; g.lineWidth = 3; g.setLineDash([10, 8]); rr(g, X - 18, Y - 18, Wd + 36, Hd + 36, 18); g.stroke(); g.setLineDash([]);
-      g.save(); g.shadowColor = '#F4A07A'; g.shadowBlur = 24; g.fillStyle = '#8A5A3C'; rr(g, X, Y, Wd, Hd, 10); g.fill(); g.restore();
-      const cx = X + Wd / 2;
-      g.fillStyle = '#F6E7D0'; g.beginPath(); g.moveTo(cx - 18, Y + 26); g.lineTo(cx + 18, Y + 26); g.lineTo(cx + 18, Y + 46); g.ellipse(cx, Y + 46, 18, 14, 0, 0, Math.PI); g.closePath(); g.fill();
-      g.strokeStyle = '#F6E7D0'; g.lineWidth = 4; g.beginPath(); g.arc(cx + 18, Y + 38, 8, -Math.PI / 2, Math.PI / 2); g.stroke();
-      g.fillStyle = '#FFF4E6'; g.font = '800 22px Manrope, sans-serif'; g.fillText(CAFE_NAMES[i], cx, Y + Hd - 18);
-    } else {
-      g.fillStyle = '#3E4359'; rr(g, X, Y, Wd, Hd, 10); g.fill();
-      g.fillStyle = '#9AA0B8'; g.font = '700 20px Manrope, sans-serif'; g.fillText(CAFE_NAMES[i], X + Wd / 2, Y + Hd / 2 + 4);
-      g.font = '700 14px Manrope, sans-serif'; g.fillText('зачинено', X + Wd / 2, Y + Hd / 2 + 26);
+    const X = c * T, Y = r * T, Wd = w * T, Hd = h * T, open = i === cafeIdx, cx = X + Wd / 2;
+    if (open) { g.strokeStyle = '#F4A07A'; g.lineWidth = 3; g.setLineDash([10, 8]); rr(g, X - 18, Y - 18, Wd + 36, Hd + 60, 18); g.stroke(); g.setLineDash([]); }
+    g.fillStyle = 'rgba(0,0,0,.22)'; rr(g, X + 5, Y + 6, Wd, Hd, 8); g.fill();
+    g.save(); if (open) { g.shadowColor = '#F4A07A'; g.shadowBlur = P.lamps ? 26 : 12; }
+    g.fillStyle = open ? '#8A5A3C' : '#4A4F63'; rr(g, X, Y, Wd, Hd, 8); g.fill(); g.restore();
+    g.fillStyle = open ? '#A06A48' : '#585E74'; rr(g, X + 6, Y + 6, Wd - 12, Hd - 34, 5); g.fill();
+    for (let wx = X + 16; wx + 18 <= X + Wd - 10; wx += 30) { g.fillStyle = open ? (P.lamps ? '#FDE68A' : '#F6E7D0') : '#3E4359'; rr(g, wx, Y + 14, 18, 14, 2); g.fill(); }
+    g.fillStyle = open ? '#1D2132' : '#2B3042'; rr(g, cx - 56, Y + 36, 112, 26, 6); g.fill();
+    g.fillStyle = open ? '#FFF4E6' : '#8A90A8'; g.font = '800 15px Manrope, sans-serif'; g.fillText(CAFE_NAMES[i], cx, Y + 54);
+    const aw = Y + Hd - 18;
+    for (let s = 0; X + s * 15 < X + Wd; s++) { g.fillStyle = s % 2 ? (open ? '#FFF4E6' : '#9AA0B8') : (open ? '#E4572E' : '#6B7090'); g.fillRect(X + s * 15, aw, Math.min(15, X + Wd - (X + s * 15)), 18); }
+    g.fillStyle = 'rgba(0,0,0,.15)'; g.fillRect(X, aw + 18, Wd, 4);
+    g.fillStyle = '#3B2A20'; rr(g, cx - 12, Y + Hd - 6, 24, 10, 2); g.fill();
+    for (const tx0 of [X + 22, X + Wd - 22]) {
+      const ty0 = Y + Hd + 34;
+      g.fillStyle = '#6B4B3A'; g.beginPath(); g.arc(tx0 - 13, ty0, 5, 0, 7); g.arc(tx0 + 13, ty0, 5, 0, 7); g.fill();
+      g.fillStyle = open ? '#EDE0CC' : '#8A90A8'; g.beginPath(); g.arc(tx0, ty0, 10, 0, 7); g.fill();
+      if (open) { g.fillStyle = '#6B4B3A'; g.beginPath(); g.arc(tx0 + 3, ty0 - 2, 2.5, 0, 7); g.fill(); }
     }
+    g.fillStyle = open ? '#F4A07A' : '#6B7090'; g.font = '800 12px Manrope, sans-serif'; g.fillText(open ? 'ВІДЧИНЕНО' : 'зачинено', cx, Y + Hd + 60);
   });
   return cv;
 }
@@ -574,13 +630,15 @@ function newSim(match) {
     const label = match.slots[s], bot = match.bots.includes(s);
     if (!label && !bot) { players.push(null); continue; }
     const [x, y] = spawnOf(s);
-    players.push({ slot: s, label, bot, x, y, st: 0, until: 0, immune: 0, sp: false, fa: false, fatUntil: 0, sprLeft: SPR_D, path: null, pi: 0, replan: 0, stuck: 0, lx: x, ly: y, bron: false, safe: 0, escUsed: false, escAt: 0 });
+    players.push({ slot: s, label, bot, x, y, st: 0, until: 0, immune: 0, sp: false, fa: false, fatUntil: 0, sprLeft: SPR_D, path: null, pi: 0, replan: 0, stuck: 0, lx: x, ly: y, bron: false, safe: 0, escUsed: false, escAt: 0, hn: 0, cn: 0 });
   }
   const sim = { t0: Date.now(), cars, peds, players, goals, fx: [], squads: [], queue: [], seq: 0, end: 0, leaf: null };
   sim.leaf = randomLeafSpot(R, players);
   return sim;
 }
 const act = p => p && (p.st === 0 || p.st === 1);
+// Зіткнення віддалених людей хост не рахує сам: їх повідомляє пристрій гравця (див. clientCollide).
+const simHere = p => !!p && (p.bot || p.label === S.myLabel);
 const huntable = (p, now) => act(p) && now >= (p.safe || 0);
 function randomLeafSpot(R, players) {
   R = R || Math.random;
@@ -646,7 +704,7 @@ function applyEscape(p, ok, now) {
   p.st = 0; p.cst = 0; p.x = ESC_OUT.x; p.y = ESC_OUT.y; p.safe = now + 3000; p.escAt = now; p.immune = now + 1500;
   S.sim.fx.push({ x: p.x, y: p.y, t: now, k: 3 });
 }
-function placeInBase(p) { p.cst = 2; [p.x, p.y] = BASE_SPOTS[p.slot]; }
+function placeInBase(p) { p.cst = 2; [p.x, p.y] = BASE_SPOTS[p.slot]; p.baseAt = Date.now(); if (p.bot) p.escUsed = true; }
 function capture(p, e, now) {
   const sim = S.sim;
   if (p.bron) {
@@ -687,13 +745,20 @@ function toLane(c) {
   c.ax = 'h'; c.loop = null; c.y = best; c.ldir = RROWS.includes((best - 30) / T) ? -1 : 1; c.dir = c.ldir;
   c.x = clamp(c.x, 40, MW - 40);
 }
+// якщо поруч із переслідувачем проходить інший гравець, ближчий за поточну ціль, він перемикається
+function retarget(e, cur, see, now) {
+  let best = null, bd = Math.min(see, dist(e, cur) - 10);
+  for (const o of S.sim.players) { if (o === cur || !huntable(o, now)) continue; const d = dist(e, o); if (d < bd) { bd = d; best = o; } }
+  if (best) { e.tgt = best.slot; e.pathT = 0; }
+}
 function tccCheck(e, see, lose, now) {
   const sim = S.sim;
   if (now - sim.t0 < GRACE_MS) return;
   if (e.st === 'chase') {
     if (e.squad) return;
     const p = sim.players[e.tgt];
-    if (!act(p) || dist(e, p) > lose) { e.st = 'hide'; e.until = now + HIDE_MS; if (e.ax) restoreDir(e); }
+    if (!act(p) || dist(e, p) > lose) { e.st = 'hide'; e.until = now + HIDE_MS; if (e.ax) restoreDir(e); return; }
+    retarget(e, p, see, now);
     return;
   }
   if (e.st === 'hide' && now > e.until) e.st = 'n';
@@ -742,7 +807,7 @@ function carsTick(dt, now) {
       if (c.ax === 'h') { const d = p.x - c.x; along = d; perp = Math.abs(p.y - c.y); if (Math.abs(d) > 6) c.dir = Math.sign(d); c.x = clamp(c.x + c.dir * Math.min(Math.abs(d), sp * dt), 40, MW - 40); }
       else { const d = p.y - c.y; along = d; perp = Math.abs(p.x - c.x); if (Math.abs(d) > 6) c.dir = Math.sign(d); c.y = clamp(c.y + c.dir * Math.min(Math.abs(d), sp * dt), c.loop.y0, c.loop.y1); }
       c.spd = Math.abs(along) > 6 ? sp : 0;
-      if (dist(c, p) < 52) { capture(p, c, now); continue; }
+      if (simHere(p) && dist(c, p) < 52) { capture(p, c, now); continue; }
       if (Math.abs(along) < 50 && perp < VAN_LOSE) {
         c.squad = { x: c.x, y: c.y, tgt: p.slot, van: c, st: 'chase', next: null, pathT: 0 };
         sim.squads.push(c.squad);
@@ -761,7 +826,7 @@ function carsTick(dt, now) {
       if (c.dir > 0 && c.y >= L.y1) { c.y = L.y1; c.dir = -1; c.x = L.up; }
       else if (c.dir < 0 && c.y <= L.y0) { c.y = L.y0; c.dir = 1; c.x = L.down; }
     }
-    if (c.spd > 40) for (const p of sim.players) if (p && p.st === 0 && now > p.immune && carHits(c, p)) stun(p, now);
+    if (c.spd > 40) for (const p of sim.players) if (simHere(p) && p.st === 0 && now > p.immune && carHits(c, p)) stun(p, now);
   }
 }
 function pedsTick(dt, now) {
@@ -788,7 +853,7 @@ function pedsTick(dt, now) {
         if (e.next) { gx = e.next[0] * T + 30; gy = e.next[1] * T + 30; if (Math.hypot(gx - e.x, gy - e.y) < 6) e.pathT = 0; }
       }
       stepTo(e, gx, gy, TCC_V * dt, 10);
-      if (dist(e, p) < 26) capture(p, e, now);
+      if (simHere(p) && dist(e, p) < 26) capture(p, e, now);
       e.tx = null;
       continue;
     }
@@ -817,6 +882,8 @@ function squadsTick(dt, now) {
     if (q.st === 'chase') {
       const p = sim.players[q.tgt];
       if (!act(p) || dist(q, p) > VAN_LOSE) { q.st = 'return'; continue; }
+      retarget(q, p, WK_SEE, now);
+      if (q.tgt !== p.slot) continue;
       const ex = tx(q.x), ey = ty(q.y), px = tx(p.x), py = ty(p.y);
       let gx = p.x, gy = p.y;
       if (ex !== px || ey !== py) {
@@ -824,7 +891,7 @@ function squadsTick(dt, now) {
         if (q.next) { gx = q.next[0] * T + 30; gy = q.next[1] * T + 30; if (Math.hypot(gx - q.x, gy - q.y) < 6) q.pathT = 0; }
       }
       stepTo(q, gx, gy, TCC_V * dt, 10);
-      if (dist(q, p) < 26) capture(p, q, now);
+      if (simHere(p) && dist(q, p) < 26) capture(p, q, now);
     } else if (q.st === 'escort') {
       const p = sim.players[q.pl];
       if (!p || p.st !== 2 || p.cst !== 0) { q.done = true; continue; }
@@ -876,6 +943,14 @@ function botTick(p, dt, now) {
   p.fa = now < p.fatUntil;
   if (moved < speed * dt * 0.2) { p.stuck += dt; if (p.stuck > 1) { p.stuck = 0; p.replan = 0; slide(p, (Math.random() - .5) * 20, (Math.random() - .5) * 20, PR); } } else p.stuck = 0;
 }
+function chaserOf(p, tol) {
+  const sim = S.sim; let best = null, bd = Infinity;
+  const consider = (e, r) => { const d = dist(e, p); if (d < r + tol && d < bd) { bd = d; best = e; } };
+  for (const c of sim.cars) if (c.st === 'chase' && c.tgt === p.slot && !c.squad) consider(c, 52);
+  for (const e of sim.peds) if (e.st === 'chase' && e.tgt === p.slot) consider(e, 26);
+  for (const q of sim.squads) if (q.st === 'chase' && q.tgt === p.slot) consider(q, 26);
+  return best;
+}
 function hostTick(dt) {
   const sim = S.sim, now = Date.now();
   const peers = S.room ? S.room.peers() : [];
@@ -887,12 +962,19 @@ function hostTick(dt) {
       if (!peer) { if (p.st !== 3 && p.st !== 2) p.st = 4; continue; }
       const g = peer.presence && peer.presence.g;
       if (g && g.esc && g.esc.m === S.match.id) applyEscape(p, !!g.esc.ok, now);
+      if (g && g.es === S.match.id) p.escStart = true;
+      if (g && g.m === S.match.id) {
+        const hn = num(g.hn, 0), cn = num(g.cn, 0);
+        if (hn > p.hn) { p.hn = hn; if (p.st === 0 && now > p.immune) stun(p, now); }
+        if (cn > p.cn) { p.cn = cn; if (huntable(p, now)) { const e = chaserOf(p, 120); if (e) capture(p, e, now); } }
+      }
       if (g && g.m === S.match.id && (p.st !== 2 || g.pl) && !(p.escAt && now - p.escAt < 1500)) { p.x = clamp(num(g.x, p.x), 0, MW); p.y = clamp(num(g.y, p.y), 0, MH); p.sp = !!g.sp; p.fa = !!g.fa; }
     }
   }
   for (const p of sim.players) {
     if (!p) continue;
     if (p.st === 1 && now >= p.until) { p.st = 0; p.immune = now + IMMUNE_MS; }
+    if (p.st === 2 && p.cst === 2 && !p.escUsed && p.baseAt && now > p.baseAt + ESC_WINDOW + (p.escStart ? 9000 : 1500)) p.escUsed = true;
   }
   for (const p of sim.players) if (p && p.bot) botTick(p, dt, now);
   carsTick(dt, now);
@@ -905,7 +987,7 @@ function hostTick(dt) {
   sim.fx = sim.fx.filter(f => now - f.t < CAP_MS + 300);
   if (!sim.end) {
     const live = sim.players.filter(p => p && p.st !== 4);
-    if (live.length && live.every(p => p.st === 3 || (p.st === 2 && p.cst === 2))) {
+    if (live.length && live.every(p => p.st === 3 || (p.st === 2 && p.cst === 2 && p.escUsed))) {
       sim.end = now;
       const fin = live.filter(p => p.st === 3).map(p => p.slot), cap = live.filter(p => p.st === 2).map(p => p.slot);
       S.match = Object.assign({}, S.match, { ph: 'end', res: { fin, cap, time: now - sim.t0 } });
@@ -916,7 +998,9 @@ function packWorld() {
   const sim = S.sim, now = Date.now();
   return {
     t: now - sim.t0, n: ++sim.seq,
-    c: sim.cars.map(c => [Math.round(c.x), Math.round(c.y), carO(c), c.st === 'n' ? 0 : 1]),
+    c: sim.cars.map(c => [Math.round(c.x), Math.round(c.y), carO(c), c.st === 'n' ? 0 : 1,
+      (!['chase', 'fetch', 'wait', 'deliver'].includes(c.st) && now >= c.stopUntil && c.spd > 40) ? 1 : 0,
+      (c.st === 'chase' && !c.squad) ? 1 : 0]),
     p: sim.peds.map(e => [Math.round(e.x), Math.round(e.y), e.st === 'n' ? 0 : (e.st === 'chase' || e.st === 'escort' ? 2 : 1)]),
     b: sim.players.filter(p => p && p.bot).map(p => [p.slot, Math.round(p.x), Math.round(p.y), p.sp ? 1 : 0, p.fa ? 1 : 0]),
     s: sim.players.map(p => p ? [p.st, Math.max(0, Math.round((p.until || 0) - now)), p.bron ? 1 : 0, p.cst || 0, Math.round(p.x), Math.round(p.y), p.escUsed ? 1 : 0] : null),
@@ -993,6 +1077,7 @@ function renderMg(bad) {
 function startMinigame() {
   MG.active = true; MG.i = 0; MG.seq = Array.from({ length: 6 }, () => DIRS[Math.floor(Math.random() * 4)]); MG.until = Date.now() + 5000;
   S.me.escTried = true; renderMg(false); document.getElementById('mg').hidden = false;
+  if (S.isHost && S.sim) { const hp = S.sim.players[S.mySlot]; if (hp) hp.escStart = true; } else S.escStart = S.match.id;
 }
 function mgInput(d) {
   if (!MG.active) return;
@@ -1012,6 +1097,34 @@ function finishMinigame(ok) {
 function mgTick() { if (MG.active) { const left = MG.until - Date.now(); document.getElementById('mgBar').style.width = Math.max(0, left / 50) + '%'; if (left <= 0) finishMinigame(false); } }
 document.getElementById('mgBtns').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (b) { e.preventDefault(); mgInput(b.dataset.d); } });
 
+// ---------- client-side collisions ----------
+// Не-хост сам вирішує, чи зачепило його, за тим, що щойно намальовано в нього на екрані.
+function clientCollide() {
+  if (S.isHost || S.mode !== 'play' || !S.match || S.mySlot < 0) return;
+  const m = S.me, now = Date.now(), [st] = myStatus();
+  if (st !== 0 || MG.active) return;
+  const onCross = 'ZY'.includes(tileAt(tx(m.x), ty(m.y)));
+  if (!onCross && now >= (m.lstunUntil || 0) && now >= (m.limmune || 0)) {
+    for (const c of S.disp.cars) {
+      if (!c.raw || num(c.raw[4], 0) !== 1) continue;
+      const o = clamp(Math.floor(num(c.raw[2], 0)), 0, 3);
+      if (carHits({ ax: o < 2 ? 'h' : 'v', x: c.x, y: c.y }, m)) {
+        m.lstunUntil = now + STUN_MS; m.limmune = now + STUN_MS + IMMUNE_MS; m.lastHitAt = now;
+        m.sprinting = false; m.hitN = (m.hitN || 0) + 1;
+        toast('Тебе збила машина! 3 секунди не рухаєшся');
+        break;
+      }
+    }
+  }
+  if (now - (m.lastCapRep || 0) >= 500) {
+    let near = false;
+    for (const c of S.disp.cars) if (c.raw && num(c.raw[5], 0) === 1 && dist(c, m) < 52) { near = true; break; }
+    if (!near) for (const e of S.disp.peds) if (e.raw && num(e.raw[2], 0) === 2 && dist(e, m) < 26) { near = true; break; }
+    if (!near && S.disp.sq) for (const q of S.disp.sq) if (dist(q, m) < 26) { near = true; break; }
+    if (near) { m.capN = (m.capN || 0) + 1; m.lastCapRep = now; }
+  }
+}
+
 // ---------- local player ----------
 function myStatus() {
   if (S.isHost && S.sim) { const p = S.sim.players[S.mySlot]; return p ? [p.st, Math.max(0, (p.until || 0) - Date.now()), p.bron ? 1 : 0, p.cst || 0, p.x, p.y, p.escUsed ? 1 : 0] : [4, 0, 0, 0, 0, 0, 1]; }
@@ -1030,7 +1143,8 @@ function updateLocal(dt) {
     m.lastBron = br;
   }
   if (st !== m.lastSt) {
-    if (st === 1) { m.sprinting = false; toast('Тебе збила машина! 3 секунди не рухаєшся'); }
+    if (st === 1) { m.sprinting = false; if (!(m.lastHitAt && now - m.lastHitAt < STUN_MS + 2000)) toast('Тебе збила машина! 3 секунди не рухаєшся'); }
+    if (st === 0 && m.lastSt === 1) m.limmune = Math.max(m.limmune || 0, now + IMMUNE_MS);
     if (st === 2) { m.sprinting = false; m.escOk = false; toast('Тебе спіймав ТЦК! Чекай на бус, повезуть на базу…'); }
     if (st === 0 && m.lastSt === 2) { [m.x, m.y] = [ESC_OUT.x, ESC_OUT.y]; m.placed = false; m.escOk = false; toast('Ти втік із ТЦК! Біжи на каву, поки не помітили.'); }
     if (st === 3) toast('Ти на каві! Перемога твоя.');
@@ -1039,10 +1153,15 @@ function updateLocal(dt) {
   if (st === 3 || st === 4) return;
   const [ix, iy] = inputVec();
   if (st === 1) return;
+  if (st === 0 && now < (m.lstunUntil || 0)) return;
   if (st === 2) {
     if (cst < 2) { m.x = sx; m.y = sy; m.placed = false; return; }
     if (m.escOk) return;
-    if (!m.placed) { [m.x, m.y] = BASE_SPOTS[S.mySlot]; m.placed = true; if (!eu && !m.escTried) note('У правій стіні бази тріщина «А». Підійди до неї: одна спроба втекти.', 5000); }
+    if (!m.placed) { [m.x, m.y] = BASE_SPOTS[S.mySlot]; m.placed = true; m.placedAt = now; if (!eu && !m.escTried) note('У правій стіні бази тріщина «А». У тебе 10 секунд, щоб до неї дійти: одна спроба втекти.', 5000); }
+    if (!eu && !m.escTried && m.placedAt && now - m.placedAt > ESC_WINDOW) {
+      m.escTried = true; toast('Час на втечу вийшов. Лишаєшся на базі ТЦК.');
+      if (S.isHost && S.sim) applyEscape(S.sim.players[S.mySlot], false, now); else S.escMsg = { m: S.match.id, ok: 0 };
+    }
     m.x = clamp(m.x + ix * V * 0.6 * dt, bx + 30, bx + 5 * T - 30);
     m.y = clamp(m.y + iy * V * 0.6 * dt, by + 30, by + 4 * T - 30);
     if (!eu && !m.escTried && dist(m, CRACK_IN) < 50) startMinigame();
@@ -1101,18 +1220,19 @@ function enterMatch(match, host) {
   S.match = match; S.isHost = host; S.hostLabel = match.host;
   S.mySlot = match.slots.indexOf(S.myLabel);
   setMap(genMap(match.seed));
-  S.stat = renderStatic(match.cafe);
+  S.env = envOf(match.seed); initWeather();
+  S.stat = renderStatic(match.cafe, S.env);
   const mc = $('mini'); const mg = mc.getContext('2d'); mg.clearRect(0, 0, 340, 340); mg.drawImage(S.stat, 0, 0, 340, 340);
   S.statMini = document.createElement('canvas'); S.statMini.width = 340; S.statMini.height = 340; S.statMini.getContext('2d').drawImage(S.stat, 0, 0, 340, 340);
   const [x, y] = spawnOf(S.mySlot);
-  Object.assign(S.me, { x, y, sprinting: false, sprintLeft: SPR_D, fatUntil: 0, placed: false, lastSt: 0, escTried: false, escOk: false, lastBron: 0 });
-  S.escMsg = null; MG.active = false; $('mg').hidden = true;
+  Object.assign(S.me, { x, y, sprinting: false, sprintLeft: SPR_D, fatUntil: 0, placed: false, lastSt: 0, escTried: false, escOk: false, lastBron: 0, hitN: 0, capN: 0, lstunUntil: 0, limmune: 0, lastHitAt: 0, lastCapRep: 0, placedAt: 0 });
+  S.escMsg = null; S.escStart = null; MG.active = false; $('mg').hidden = true;
   S.snap = null; S.lastQ = -1; S.disp = { cars: [], peds: [], pl: [{}, {}, {}, {}] };
   if (host) S.sim = newSim(match); else S.sim = null;
   S.mode = 'play';
   document.body.classList.add('playing');
-  $('lobby').hidden = true; $('endScreen').hidden = true; $('hud').hidden = false; $('sprintHud').hidden = false; $('mini').hidden = false;
-  note(`Сьогодні відкрита ${CAFE_NAMES[match.cafe]} — прямуй униз!`, 4500);
+  $('lobby').hidden = true; $('endScreen').hidden = true; $('hud').hidden = false; ANIM.clear(); $('sprintHud').hidden = false; $('mini').hidden = false;
+  note(`Сьогодні відкрита ${CAFE_NAMES[match.cafe]}. ${ENV_TXT[S.env.tod]}, ${ENV_TXT[S.env.weather]}. Прямуй униз!`, 4500);
   cam.init = false;
 }
 function backToLobby() {
@@ -1269,6 +1389,8 @@ function netTick(dt) {
   const now = Date.now();
   const g = { m: S.match.id, x: Math.round(S.me.x), y: Math.round(S.me.y), sp: S.me.sprinting ? 1 : 0, fa: now < S.me.fatUntil ? 1 : 0, pl: S.me.placed ? 1 : 0 };
   if (S.escMsg) g.esc = S.escMsg;
+  if (S.escStart) g.es = S.escStart;
+  if (!S.isHost) { g.hn = S.me.hitN || 0; g.cn = S.me.capN || 0; }
   if (S.isHost) {
     const m = S.match;
     S.room.presence({ m: { id: m.id, seed: m.seed, cafe: m.cafe, t0: m.t0, slots: m.slots, bots: m.bots, ph: m.ph, host: m.host, res: m.res || null }, w: packWorld(), g }).catch(() => {});
@@ -1291,7 +1413,7 @@ function clientRead() {
 const cam = { x: 0, y: 0, s: 1, init: false };
 let dpr = 1;
 function resize() { dpr = Math.min(2, devicePixelRatio || 1); cvs.width = Math.round(innerWidth * dpr); cvs.height = Math.round(innerHeight * dpr); }
-addEventListener('resize', resize); resize();
+addEventListener('resize', () => { resize(); if (S.env) initWeather(); }); resize();
 function lerpArr(dispArr, src, k) {
   if (!Array.isArray(src)) return dispArr;
   const out = [];
@@ -1363,7 +1485,8 @@ function nickOf(s) {
 function drawCar(c) {
   const ang = [0, Math.PI, Math.PI / 2, -Math.PI / 2][c.o] || 0;
   ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(ang);
-  ctx.fillStyle = 'rgba(253,230,138,.16)'; ctx.beginPath(); ctx.moveTo(32, -11); ctx.lineTo(84, -26); ctx.lineTo(84, 26); ctx.lineTo(32, 11); ctx.closePath(); ctx.fill();
+  if (!S.env || S.env.tod === 'night') { ctx.fillStyle = 'rgba(253,230,138,.16)'; } else { ctx.fillStyle = 'rgba(255,255,255,0)'; }
+  ctx.beginPath(); ctx.moveTo(32, -11); ctx.lineTo(84, -26); ctx.lineTo(84, 26); ctx.lineTo(32, 11); ctx.closePath(); ctx.fill();
   if (c.rev) { ctx.shadowColor = GREEN; ctx.shadowBlur = 20; }
   ctx.fillStyle = c.rev ? GREEN : CARC[c.i % 5]; rr(ctx, -32, -17, 64, 34, 8); ctx.fill(); ctx.shadowBlur = 0;
   ctx.fillStyle = 'rgba(29,33,50,.22)'; rr(ctx, -22, -12, 26, 24, 4); ctx.fill();
@@ -1375,44 +1498,118 @@ function drawCar(c) {
     ctx.fillStyle = '#FFFFFF'; ctx.font = '800 14px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('ТЦК', c.x, c.y - 31);
   }
 }
-function drawPed(e) {
-  if (e.rev) { ctx.save(); ctx.shadowColor = GREEN; ctx.shadowBlur = 16; }
-  ctx.fillStyle = e.rev ? GREEN : PEDC[e.i % 6];
-  ctx.beginPath(); ctx.ellipse(e.x, e.y, 12, 8, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = e.rev ? '#1F5E3A' : '#3A3024'; ctx.beginPath(); ctx.arc(e.x, e.y, 6, 0, 7); ctx.fill();
-  if (e.rev) ctx.restore();
-  if (e.chase) { ctx.fillStyle = '#BFF3D2'; ctx.font = '800 18px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', e.x, e.y - 16); }
+const HAIRS = ['#3B2A20', '#1E1B1A', '#7A4A28', '#C9A36B', '#5A5A5A', '#8C3B2A'];
+const PEDA = ['#B79A8A', '#8A9AB7', '#A7B78A', '#B78AA3', '#9AB7B3', '#BBAA7C'];
+const TCC_BODY = '#2F9A5A', TCC_ARM = '#23784A';
+const ANIM = new Map();
+function animOf(key, x, y) {
+  let a = ANIM.get(key);
+  if (!a) { a = { x, y, h: Math.PI / 2, ph: 0, mv: 0 }; ANIM.set(key, a); }
+  const dx = x - a.x, dy = y - a.y, d = Math.hypot(dx, dy);
+  if (d > 0.15 && d < 80) { a.h = Math.atan2(dy, dx); a.ph += d * 0.2; a.mv = Math.min(1, a.mv + 0.2); }
+  else { a.mv = Math.max(0, a.mv - 0.1); }
+  a.x = x; a.y = y; return a;
 }
-const lastPos = [{}, {}, {}, {}];
+// людина зверху: плечі, руки, голова, ноги, що ступають
+function drawPerson(x, y, a, o) {
+  const sw = Math.sin(a.ph) * a.mv, bob = Math.abs(Math.cos(a.ph)) * a.mv * 0.8;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(a.h); ctx.scale(o.s || 1.3, o.s || 1.3);
+  ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(2, 3, 10, 14, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#26242C';
+  ctx.beginPath(); ctx.ellipse(sw * 8, -5, 4.8, 3, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-sw * 8, 5, 4.8, 3, 0, 0, 7); ctx.fill();
+  ctx.scale(1 + bob * 0.04, 1 + bob * 0.04);
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = 16; }
+  ctx.fillStyle = o.arm; ctx.beginPath(); ctx.arc(-sw * 6, -12.5, 3.8, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(sw * 6, 12.5, 3.8, 0, 7); ctx.fill();
+  ctx.fillStyle = o.body; ctx.beginPath(); ctx.ellipse(0, 0, 7.5, 12.5, 0, 0, 7); ctx.fill();
+  ctx.shadowBlur = 0;
+  if (o.hood) { ctx.fillStyle = o.arm; ctx.beginPath(); ctx.ellipse(-4, 0, 3, 8, 0, 0, 7); ctx.fill(); }
+  ctx.fillStyle = '#E3B98F'; ctx.beginPath(); ctx.arc(2, 0, 6, 0, 7); ctx.fill();
+  ctx.fillStyle = o.hair; ctx.beginPath(); ctx.arc(0.5, 0, 6, Math.PI * 0.62, Math.PI * 1.38); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.5, 0, 5.2, Math.PI * 0.5, Math.PI * 1.5); ctx.fill();
+  ctx.restore();
+}
+function drawPed(e) {
+  const a = animOf('E' + e.i, e.x, e.y);
+  drawPerson(e.x, e.y, a, e.rev ? { body: TCC_BODY, arm: TCC_ARM, hair: HAIRS[e.i % 6], glow: GREEN, hood: true } : { body: PEDC[e.i % 6], arm: PEDA[e.i % 6], hair: HAIRS[e.i % 6] });
+  if (e.chase) { ctx.fillStyle = '#BFF3D2'; ctx.strokeStyle = '#1D2132'; ctx.lineWidth = 3; ctx.font = '800 18px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.strokeText('!', e.x, e.y - 18); ctx.fillText('!', e.x, e.y - 18); }
+}
+function label(text, x, y, font) {
+  ctx.font = font || '700 12px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(22,26,40,.85)'; ctx.lineWidth = 3.5; ctx.strokeText(text, x, y);
+  ctx.fillStyle = '#F4F1EA'; ctx.fillText(text, x, y);
+}
 function drawPlayer(p, t) {
-  const col = PC[p.slot];
-  const lp = lastPos[p.slot]; const vx = p.x - (lp.x ?? p.x), vy = p.y - (lp.y ?? p.y); const vl = Math.hypot(vx, vy);
-  if (vl > 0.5) { lp.dx = vx / vl; lp.dy = vy / vl; }
-  lp.x = p.x; lp.y = p.y;
+  const col = PC[p.slot], a = animOf('P' + p.slot, p.x, p.y);
   if (p.st === 3) ctx.globalAlpha = 0.55;
-  if (p.sp && lp.dx != null) {
+  ctx.fillStyle = col + '33'; ctx.strokeStyle = col; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(p.x, p.y + 2, 23, 23, 0, 0, 7); ctx.fill(); ctx.stroke();
+  if (p.sp) {
+    const dx = Math.cos(a.h), dy = Math.sin(a.h);
     ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.lineCap = 'round';
-    for (const o of [-10, 0, 10]) { const nx = -lp.dy * o, ny = lp.dx * o; ctx.beginPath(); ctx.moveTo(p.x - lp.dx * 22 + nx, p.y - lp.dy * 22 + ny); ctx.lineTo(p.x - lp.dx * 40 + nx, p.y - lp.dy * 40 + ny); ctx.stroke(); }
+    for (const o of [-10, 0, 10]) { const nx = -dy * o, ny = dx * o; ctx.beginPath(); ctx.moveTo(p.x - dx * 24 + nx, p.y - dy * 24 + ny); ctx.lineTo(p.x - dx * 42 + nx, p.y - dy * 42 + ny); ctx.stroke(); }
   }
-  ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 14;
-  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, PR + 1, 0, 7); ctx.fill(); ctx.restore();
-  ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.arc(p.x, p.y, PR + 1, 0, 7); ctx.stroke();
-  ctx.fillStyle = '#1D2132'; ctx.font = '800 15px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(String(p.slot + 1), p.x, p.y + 5);
-  ctx.fillStyle = 'rgba(233,228,212,.9)'; ctx.font = '700 12px Manrope, sans-serif'; ctx.fillText(p.nick + (p.slot === S.mySlot ? ' (ти)' : ''), p.x, p.y - 24);
-  if (p.br) drawPaper(p.x + 20, p.y + 8, 0.55, true);
-  if (p.st === 1) { for (let k = 0; k < 3; k++) { const a = t / 300 + k * 2.1; ctx.fillStyle = '#F5D37A'; ctx.beginPath(); ctx.arc(p.x + Math.cos(a) * 20, p.y - 6 + Math.sin(a) * 8, 4, 0, 7); ctx.fill(); } }
+  if (p.st === 1) a.mv = 0;
+  drawPerson(p.x, p.y, a, { body: col, arm: PCD[p.slot], hair: HAIRS[(p.slot + 2) % 6] });
+  label((p.slot + 1) + ' · ' + p.nick + (p.slot === S.mySlot ? ' (ти)' : ''), p.x, p.y - 31);
+  if (p.br) drawPaper(p.x + 22, p.y + 10, 0.55, true);
+  if (p.st === 1) { for (let k = 0; k < 3; k++) { const an = t / 300 + k * 2.1; ctx.fillStyle = '#F5D37A'; ctx.beginPath(); ctx.arc(p.x + Math.cos(an) * 20, p.y - 6 + Math.sin(an) * 8, 4, 0, 7); ctx.fill(); } }
   if (p.fa && p.st === 0) { ctx.fillStyle = '#9BD3F5'; for (const o of [-18, 18]) { const yy = p.y - 12 + ((t / 12 + o * 3) % 14); ctx.beginPath(); ctx.moveTo(p.x + o, yy - 5); ctx.quadraticCurveTo(p.x + o + 4, yy + 2, p.x + o, yy + 3); ctx.quadraticCurveTo(p.x + o - 4, yy + 2, p.x + o, yy - 5); ctx.fill(); } }
   ctx.globalAlpha = 1;
 }
-function drawSquad(q, t) {
-  const offs = [[-14, -6], [14, -6], [0, 12]];
+function drawSquad(q, t, qi) {
+  const offs = [[-14, -8], [14, -8], [0, 12]];
   offs.forEach(([dx, dy], k) => {
-    const bob = Math.sin(t / 90 + k * 2) * 2;
-    ctx.save(); ctx.shadowColor = GREEN; ctx.shadowBlur = 14;
-    ctx.fillStyle = GREEN; ctx.beginPath(); ctx.ellipse(q.x + dx, q.y + dy + bob, 11, 7.5, 0, 0, 7); ctx.fill(); ctx.restore();
-    ctx.fillStyle = '#1F5E3A'; ctx.beginPath(); ctx.arc(q.x + dx, q.y + dy + bob, 5.5, 0, 7); ctx.fill();
+    const x = q.x + dx, y = q.y + dy, a = animOf('Q' + qi + '_' + k, x, y);
+    drawPerson(x, y, a, { body: TCC_BODY, arm: TCC_ARM, hair: HAIRS[(k + 1) % 6], glow: GREEN, hood: true });
   });
-  ctx.fillStyle = '#BFF3D2'; ctx.font = '800 18px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', q.x, q.y - 20);
+  ctx.fillStyle = '#BFF3D2'; ctx.strokeStyle = '#1D2132'; ctx.lineWidth = 3; ctx.font = '800 18px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.strokeText('!', q.x, q.y - 24); ctx.fillText('!', q.x, q.y - 24);
+}
+// ---------- weather (передній план) ----------
+const WX = { parts: [], w: 0, h: 0, blobs: [] };
+function initWeather() {
+  WX.parts = []; WX.blobs = []; WX.w = innerWidth; WX.h = innerHeight;
+  const w = S.env ? S.env.weather : 'clear';
+  const n = w === 'rain' ? 260 : w === 'snow' ? 190 : 0;
+  for (let i = 0; i < n; i++) WX.parts.push({ x: Math.random() * WX.w, y: Math.random() * WX.h, v: w === 'rain' ? 700 + Math.random() * 400 : 40 + Math.random() * 60, s: Math.random(), ph: Math.random() * 7 });
+  if (w === 'fog') for (let i = 0; i < 7; i++) WX.blobs.push({ x: Math.random() * WX.w, y: Math.random() * WX.h, r: 160 + Math.random() * 200, v: 8 + Math.random() * 14 });
+}
+function drawWeather(dt, t) {
+  if (!S.env) return;
+  const w = S.env.weather, day = S.env.tod === 'day', vw = innerWidth, vh = innerHeight;
+  ctx.save(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (w === 'rain') {
+    ctx.fillStyle = day ? 'rgba(70,90,120,.16)' : 'rgba(20,30,55,.22)'; ctx.fillRect(0, 0, vw, vh);
+    ctx.strokeStyle = day ? 'rgba(210,225,245,.55)' : 'rgba(170,195,235,.45)'; ctx.lineWidth = 1.4; ctx.beginPath();
+    for (const p of WX.parts) {
+      p.y += p.v * dt; p.x -= p.v * 0.22 * dt;
+      if (p.y > vh + 20) { p.y = -20; p.x = Math.random() * (vw + 100); }
+      if (p.x < -20) p.x += vw + 40;
+      const L = 10 + p.s * 14; ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + L * 0.22, p.y - L);
+    }
+    ctx.stroke();
+  } else if (w === 'snow') {
+    ctx.fillStyle = day ? 'rgba(255,255,255,.14)' : 'rgba(200,210,235,.10)'; ctx.fillRect(0, 0, vw, vh);
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    for (const p of WX.parts) {
+      p.y += p.v * dt; p.ph += dt * 1.5; p.x += Math.sin(p.ph) * 22 * dt;
+      if (p.y > vh + 10) { p.y = -10; p.x = Math.random() * vw; }
+      ctx.beginPath(); ctx.arc(p.x, p.y, 1.4 + p.s * 2.6, 0, 7); ctx.fill();
+    }
+  } else if (w === 'fog') {
+    const px = (S.me.x - cam.x) * cam.s, py = (S.me.y - cam.y) * cam.s;
+    const fc = day ? '220,226,232' : '42,48,66';
+    const gr = ctx.createRadialGradient(px, py, 120 * cam.s + 40, px, py, 430 * cam.s + 120);
+    gr.addColorStop(0, `rgba(${fc},0)`); gr.addColorStop(1, `rgba(${fc},.82)`);
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, vw, vh);
+    for (const b of WX.blobs) {
+      b.x += b.v * dt; if (b.x - b.r > vw) b.x = -b.r;
+      const bg = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+      bg.addColorStop(0, `rgba(${fc},.28)`); bg.addColorStop(1, `rgba(${fc},0)`);
+      ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 function drawPaper(x, y, s, glow) {
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
@@ -1472,7 +1669,7 @@ function updateHud(view, dt) {
   }
   let el = 0;
   if (S.isHost && S.sim) el = (S.sim.end || Date.now()) - S.sim.t0; else if (S.snap) el = num(S.snap.t, 0) + (S.mode === 'play' ? Date.now() - S.snapAt : 0);
-  $('timer').textContent = fmt(el);
+  $('timer').textContent = fmt(el) + (S.env ? ' · ' + ENV_TXT[S.env.tod] + ', ' + ENV_TXT[S.env.weather] : '');
   const m = S.me, now = Date.now(), fat = now < m.fatUntil;
   const segs = $('segs'); if (!segs.children.length) for (let i = 0; i < 8; i++) { const s = document.createElement('span'); s.className = 'seg'; segs.append(s); }
   const left = fat ? 0 : Math.ceil(Math.max(0, m.sprintLeft) / T);
@@ -1503,7 +1700,7 @@ function drawGuide(view) {
   ctx.restore();
 }
 function render(dt, t) {
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#161A28'; ctx.fillRect(0, 0, cvs.width, cvs.height);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = S.env && S.mode !== 'lobby' ? PAL[S.env.tod].bg : '#161A28'; ctx.fillRect(0, 0, cvs.width, cvs.height);
   if (S.mode === 'lobby' || !S.stat) { drawLobbyBg(t); return; }
   const view = worldView(dt);
   const vw = innerWidth, vh = innerHeight;
@@ -1512,18 +1709,20 @@ function render(dt, t) {
   let fx = S.me.x - tw / 2, fy = S.me.y - th / 2;
   fx = tw >= MW ? (MW - tw) / 2 : clamp(fx, 0, MW - tw); fy = th >= MH ? (MH - th) / 2 : clamp(fy, -60 / cam.s, MH - th + 40 / cam.s);
   if (!cam.init) { cam.x = fx; cam.y = fy; cam.init = true; } else { cam.x += (fx - cam.x) * Math.min(1, dt * 8); cam.y += (fy - cam.y) * Math.min(1, dt * 8); }
-  let shake = 0; const [st] = myStatus(); if (st === 1) shake = 3;
+  let shake = 0; const [st] = myStatus(); if (st === 1 || Date.now() < (S.me.lstunUntil || 0)) shake = 3;
   ctx.setTransform(dpr * cam.s, 0, 0, dpr * cam.s, -(cam.x + (Math.random() - .5) * shake) * dpr * cam.s, -(cam.y + (Math.random() - .5) * shake) * dpr * cam.s);
   const sx = clamp(Math.floor(cam.x), 0, MW), sy = clamp(Math.floor(cam.y), 0, MH), sw = Math.min(MW - sx, Math.ceil(tw) + 2), sh = Math.min(MH - sy, Math.ceil(th) + 2);
   if (sw > 0 && sh > 0) ctx.drawImage(S.stat, sx, sy, sw, sh, sx, sy, sw, sh);
   for (const e of view.peds) drawPed(e);
   for (const c of view.cars) drawCar(c);
   if (view.leaf) drawLeaf(view.leaf, t);
-  for (const q of view.sq) drawSquad(q, t);
+  view.sq.forEach((q, qi) => drawSquad(q, t, qi));
   for (const f of view.fx) drawFx(f);
   const ord = view.players.slice().sort((a, b) => (a.slot === S.mySlot) - (b.slot === S.mySlot));
   for (const p of ord) drawPlayer(p, t);
-  { const [st2, , , cst2, , , eu2] = myStatus(); if (st2 === 2 && cst2 === 2 && !eu2 && !S.me.escTried) { const pr = 34 + Math.sin(t / 200) * 6; ctx.strokeStyle = 'rgba(253,230,138,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(CRACK_IN.x, CRACK_IN.y, pr, 0, 7); ctx.stroke(); } }
+  { const [st2, , , cst2, , , eu2] = myStatus(); if (st2 === 2 && cst2 === 2 && !eu2 && !S.me.escTried) { const pr = 34 + Math.sin(t / 200) * 6; ctx.strokeStyle = 'rgba(253,230,138,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(CRACK_IN.x, CRACK_IN.y, pr, 0, 7); ctx.stroke();
+    if (S.me.placedAt) { const left = Math.max(0, Math.ceil((ESC_WINDOW - (Date.now() - S.me.placedAt)) / 1000)); ctx.fillStyle = '#FDE68A'; ctx.font = '800 20px Manrope, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(left + ' с', CRACK_IN.x - 40, CRACK_IN.y + 60); } } }
+  drawWeather(dt, t);
   drawGuide(view);
   updateHud(view, dt);
   drawMini(view);
@@ -1554,6 +1753,7 @@ function frame(t) {
     }
   }
   render(dt, t);
+  if (!S.isHost && S.mode === 'play') clientCollide();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
